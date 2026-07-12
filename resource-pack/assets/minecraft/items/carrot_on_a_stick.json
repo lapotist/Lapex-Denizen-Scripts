@@ -234,6 +234,69 @@
           "type": "minecraft:model",
           "model": "minecraft:item/carrot_on_a_stick"
         }
+      },
+      {
+        "threshold": 1101,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/caustic_trap"
+        }
+      },
+      {
+        "threshold": 1102,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/horizon_newt"
+        }
+      },
+      {
+        "threshold": 1103,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/octane_pad"
+        }
+      },
+      {
+        "threshold": 1104,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/axle_gate"
+        }
+      },
+      {
+        "threshold": 1105,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/ash_portal"
+        }
+      },
+      {
+        "threshold": 1106,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/gibraltar_dome"
+        }
+      },
+      {
+        "threshold": 1107,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/lifeline_doc"
+        }
+      },
+      {
+        "threshold": 1108,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/lifeline_halo"
+        }
+      },
+      {
+        "threshold": 1109,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/carrot_on_a_stick"
+        }
       }
     ],
     "fallback": {
