@@ -93,20 +93,32 @@ lapex_tactical_ash:
 
 lapex_tactical_axle:
     type: task
+    debug: false
     script:
-    - define gate <player.location.forward[4]>
-    - define destination <player.location.forward[16]>
-    - playsound <[gate]> sound:block.beacon.activate pitch:1.7 volume:0.8
-    - repeat 30:
-        - if !<player.is_online>:
-            - stop
-        - playeffect effect:dust at:<[gate]> offset:1.1 quantity:14 special_data:[size=1;color=75,225,255]
-        - foreach <[gate].find_entities[living].within[2.2]> as:rider:
-            - if !<[rider].has_flag[lapex.nitro_boost]>:
-                - flag <[rider]> lapex.nitro_boost expire:2s
-                - push <[rider]> origin:<[gate]> destination:<[destination]> speed:1.8 duration:10t no_damage
-                - cast speed duration:2s amplifier:2 <[rider]>
-        - wait 10t
+    - define desired <player.location.forward[4]>
+    - define gate <proc[lapex_legend_safe_destination].context[<[desired]>|null]||null>
+    - if <[gate]> == null:
+        - flag player lapex.cooldown.tactical:!
+        - actionbar "<red>NO SAFE NITRO GATE LOCATION"
+        - stop
+    - define spawn_tag lapex_axle_<util.random_uuid>
+    - ~run lapex_native_spawn_armor_stand def.location:<[gate]> def.tag:<[spawn_tag]> def.arms:false def.small:false
+    - define device <server.flag[lapex.native_spawn_result.<[spawn_tag]>]||null>
+    - flag server lapex.native_spawn_result.<[spawn_tag]>:!
+    - if <[device]> == null:
+        - flag player lapex.cooldown.tactical:!
+        - actionbar "<red>NITRO GATE DEPLOY FAILED"
+        - stop
+    - adjust <[device]> gravity:false
+    - adjust <[device]> silent:true
+    - adjust <[device]> visible:false
+    - adjust <[device]> base_plate:false
+    - adjust <[device]> collidable:false
+    - teleport <[device]> <[gate].with_yaw[<player.location.yaw>]>
+    - equip <[device]> head:<item[lapex_model_axle_gate]>
+    - flag <[device]> lapex.deployable_state:active
+    - run lapex_deployable_register def.owner:<player> def.entity:<[device]> def.kind:axle_gate def.health:100 def.max_count:2 "def.label:<aqua>NITRO GATE"
+    - playsound <[device]> sound:block.beacon.activate pitch:1.7 volume:0.8
 
 lapex_tactical_ballistic:
     type: task
@@ -114,6 +126,10 @@ lapex_tactical_ballistic:
     - if <player.item_in_hand.flag[lapex.id]||null> == whistler:
         - inventory flag slot:hand lapex.ammo:<script[lapex_weapon_data].data_key[weapons.whistler.mag]>
         - actionbar "<gold>Whistler reloaded"
+    - else if <proc[lapex_player_has_weapon].context[<player>|whistler]>:
+        - flag player lapex.cooldown.tactical:!
+        - actionbar "<gray>Whistler is already in your inventory"
+        - stop
     - else:
         - give <item[apex_whistler]>
         - narrate "<gold>Whistler deployed. <gray>Equip it and fire to tag or trap a target."
@@ -156,27 +172,33 @@ lapex_tactical_catalyst:
 
 lapex_tactical_caustic:
     type: task
+    debug: false
     script:
-    - define trap <player.eye_location.ray_trace[range=18;entities=living;ignore=<player>;raysize=0.25;default=air]>
-    - playeffect effect:cloud at:<[trap]> offset:0.3 quantity:12
-    - playsound <[trap]> sound:block.iron_trapdoor.close pitch:0.7 volume:0.8
-    - define triggered false
-    - repeat 40:
-        - playeffect effect:dust at:<[trap]> offset:0.35 quantity:3 special_data:[size=0.65;color=180,230,35]
-        - foreach <[trap].find_entities[player].within[3]> as:target:
-            - if !<proc[lapex_legend_is_ally].context[<player>|<[target]>]> && !<[target].has_flag[lapex.legend_protected]> && !<[target].has_flag[lapex.phased]>:
-                - define triggered true
-                - repeat stop
-        - if <[triggered]>:
-            - repeat stop
-        - wait 10t
-    - if !<[triggered]>:
+    - define raw <player.eye_location.ray_trace[range=18;default=air]>
+    - define trap <proc[lapex_legend_safe_destination].context[<[raw]>|null]||null>
+    - if <[trap]> == null:
+        - flag player lapex.cooldown.tactical:!
+        - actionbar "<red>NO SAFE TRAP LOCATION"
         - stop
-    - playsound <[trap]> sound:block.fire.extinguish pitch:0.55 volume:1
-    - repeat 12:
-        - playeffect effect:cloud at:<[trap]> offset:3 quantity:40
-        - run lapex_legend_damage_sphere def.location:<[trap]> def.radius:5 def.damage:5 def.effect:slow def.pylon_blockable:true
-        - wait 1s
+    - define spawn_tag lapex_caustic_<util.random_uuid>
+    - ~run lapex_native_spawn_armor_stand def.location:<[trap]> def.tag:<[spawn_tag]> def.arms:false
+    - define device <server.flag[lapex.native_spawn_result.<[spawn_tag]>]||null>
+    - flag server lapex.native_spawn_result.<[spawn_tag]>:!
+    - if <[device]> == null:
+        - flag player lapex.cooldown.tactical:!
+        - actionbar "<red>NOX TRAP DEPLOY FAILED"
+        - stop
+    - adjust <[device]> gravity:false
+    - adjust <[device]> silent:true
+    - adjust <[device]> visible:false
+    - adjust <[device]> base_plate:false
+    - adjust <[device]> arms:false
+    - adjust <[device]> collidable:false
+    - equip <[device]> head:<item[lapex_model_caustic_trap]>
+    - flag <[device]> lapex.deployable_state:arming
+    - run lapex_deployable_register def.owner:<player> def.entity:<[device]> def.kind:caustic_trap def.health:225 def.max_count:6 "def.label:<green>NOX TRAP"
+    - playsound <[device]> sound:block.iron_trapdoor.close pitch:0.7 volume:0.8
+    - actionbar "<green>NOX TRAP DEPLOYED <gray>- arming"
 
 lapex_tactical_conduit:
     type: task
@@ -196,6 +218,7 @@ lapex_tactical_crypto:
     - define owner <player>
     - define origin <[owner].location>
     - define session <util.random_uuid>
+    - define body_tag lapex_crypto_<[session]>
     # Paper exposes mannequins as native player-shaped living entities, but the
     # current Denizen spawn adapter cannot construct them directly. Summon in
     # the correct dimension, then bind the entity back into Denizen.
@@ -206,11 +229,17 @@ lapex_tactical_crypto:
         - define dimension minecraft:the_nether
     - else if <[origin].world.name> == world_the_end:
         - define dimension minecraft:the_end
-    - execute as_server "execute in <[dimension]> run summon minecraft:mannequin <[origin].x> <[origin].y> <[origin].z> {profile:{name:'<[owner].name>'},immovable:true}" silent
-    - define body <[origin].find_entities[mannequin].within[0.75].first||null>
+    - execute as_server "execute in <[dimension]> run summon minecraft:mannequin <[origin].x> <[origin].y> <[origin].z> {Tags:['<[body_tag]>'],profile:{name:'<[owner].name>'}}" silent
+    - wait 2t
+    - define body null
+    - foreach <[origin].find_entities[mannequin].within[0.75]> as:candidate:
+        - if <[candidate].scoreboard_tags.contains[<[body_tag]>]>:
+            - define body <[candidate]>
+            - foreach stop
     - if <[body]> == null:
-        - spawn armor_stand <[origin]> persistent save:crypto_body_fallback
-        - define body <entry[crypto_body_fallback].spawned_entity||null>
+        - ~run lapex_native_spawn_armor_stand def.location:<[origin]> def.tag:<[body_tag]> def.arms:true
+        - define body <server.flag[lapex.native_spawn_result.<[body_tag]>]||null>
+        - flag server lapex.native_spawn_result.<[body_tag]>:!
         - if <[body]> != null:
             - adjust <[body]> arms:true
             - adjust <[body]> base_plate:false
@@ -218,7 +247,7 @@ lapex_tactical_crypto:
         - flag <[owner]> lapex.cooldown.tactical:!
         - actionbar "<red>DRONE DEPLOY FAILED" targets:<[owner]>
         - stop
-    - adjust <[body]> gravity:false
+    - adjust <[body]> gravity:true
     - adjust <[body]> silent:true
     - adjust <[body]> custom_name:<gold><[owner].name>
     - adjust <[body]> custom_name_visible:true
@@ -227,8 +256,10 @@ lapex_tactical_crypto:
     - define gear <[owner].equipment_map>
     - equip <[body]> hand:<[owner].item_in_hand> head:<[owner].skull_item> chest:<[gear].get[chestplate]||air> legs:<[gear].get[leggings]||air> boots:<[gear].get[boots]||air>
 
-    - spawn allay <[origin].above[1.35]> persistent save:crypto_drone_spawn
-    - define drone <entry[crypto_drone_spawn].spawned_entity||null>
+    - define drone_tag lapex_crypto_drone_<[session]>
+    - ~run lapex_native_spawn_allay def.location:<[origin].above[1.35]> def.tag:<[drone_tag]>
+    - define drone <server.flag[lapex.native_spawn_result.<[drone_tag]>]||null>
+    - flag server lapex.native_spawn_result.<[drone_tag]>:!
     - if <[drone]> == null:
         - remove <[body]>
         - flag <[owner]> lapex.cooldown.tactical:!
@@ -306,23 +337,51 @@ lapex_crypto_pilot:
 lapex_crypto_body_hit:
     type: task
     debug: false
-    definitions: owner|damage|attacker|session|proxy
+    definitions: owner|damage|attacker|cause|session|proxy
     script:
-    # Let the firing queue finish its target bookkeeping before removing the
-    # proxy, then restore the owner so normal hurt/death behavior can run.
-    - wait 1t
-    - if !<[owner].is_online||false>:
+    # A shotgun routes one event per pellet in the same tick. Collect all of
+    # them before leaving drone view so later pellets are not lost when the
+    # first event clears the Crypto session.
+    - if !<[owner].is_online||false> || <[damage]||0> <= 0:
         - stop
     - if <[owner].flag[lapex.crypto_active]||null> != <[session]> || <[owner].flag[lapex.crypto_body_entity]||null> != <[proxy]>:
         - stop
-    - if <[owner].has_flag[lapex.crypto_active]>:
-        - run lapex_crypto_exit def.owner:<[owner]> def.reason:body_hit
-    - if <[damage]> <= 0:
+    - define body_protected <[owner].has_flag[lapex.phased]>
+    - if <[attacker]||null> != null && <[attacker]> != <[owner]> && <[owner].has_flag[lapex.legend_protected]>:
+        - define body_protected true
+    - if <[body_protected]>:
         - stop
+    - flag <[owner]> lapex.crypto_body_pending_damage.<[session]>:+:<[damage]>
+    - flag <[owner]> lapex.crypto_body_pending_cause.<[session]>:<[cause]||CUSTOM>
+    - if <[attacker]||null> != null:
+        - flag <[owner]> lapex.crypto_body_pending_attacker.<[session]>:<[attacker]>
+    - if <[owner].flag[lapex.crypto_body_pending_flush]||null> == <[session]>:
+        - stop
+    - flag <[owner]> lapex.crypto_body_pending_flush:<[session]>
+    - run lapex_crypto_body_flush def.owner:<[owner]> def.session:<[session]> def.proxy:<[proxy]>
+
+lapex_crypto_body_flush:
+    type: task
+    debug: false
+    definitions: owner|session|proxy
+    script:
+    - wait 1t
+    - define damage <[owner].flag[lapex.crypto_body_pending_damage.<[session]>]||0>
+    - define attacker <[owner].flag[lapex.crypto_body_pending_attacker.<[session]>]||null>
+    - define cause <[owner].flag[lapex.crypto_body_pending_cause.<[session]>]||CUSTOM>
+    - flag <[owner]> lapex.crypto_body_pending_damage.<[session]>:!
+    - flag <[owner]> lapex.crypto_body_pending_attacker.<[session]>:!
+    - flag <[owner]> lapex.crypto_body_pending_cause.<[session]>:!
+    - flag <[owner]> lapex.crypto_body_pending_flush:!
+    - if !<[owner].is_online||false> || <[damage]> <= 0:
+        - stop
+    - if <[owner].flag[lapex.crypto_active]||null> != <[session]> || <[owner].flag[lapex.crypto_body_entity]||null> != <[proxy]>:
+        - stop
+    - ~run lapex_crypto_exit def.owner:<[owner]> def.reason:body_hit
     - if <[attacker]> != null && <[attacker].is_spawned||false>:
-        - hurt <[damage]> <[owner]> cause:PROJECTILE source:<[attacker]>
+        - hurt <[damage]> <[owner]> cause:<[cause]> source:<[attacker]>
     - else:
-        - hurt <[damage]> <[owner]> cause:CUSTOM
+        - hurt <[damage]> <[owner]> cause:<[cause]>
 
 lapex_crypto_drone_hit:
     type: task
@@ -355,8 +414,15 @@ lapex_crypto_exit:
     - define body <[owner].flag[lapex.crypto_body_entity]||null>
     - define drone <[owner].flag[lapex.crypto_drone_entity]||null>
     - define origin <[owner].flag[lapex.crypto_origin]||null>
+    - define return_location <[origin]>
     - define body_chunk <[owner].flag[lapex.crypto_body_chunk]||null>
     - define old_gamemode <[owner].flag[lapex.crypto_gamemode]||SURVIVAL>
+    # Paper may save the spectator-camera position during disconnect. Keep a
+    # one-shot fallback so reconnect always returns to the guarded body spot.
+    - if <[body]> != null && <[body].is_spawned||false>:
+        - define return_location <[body].location>
+    - if <[reason]> == quit && <[return_location]> != null:
+        - flag <[owner]> lapex.crypto_reconnect_location:<[return_location]>
     - if <[body_chunk]> != null:
         - chunkload <[body_chunk]>
     - if <[drone]> != null && <[drone].is_spawned||false>:
@@ -369,8 +435,8 @@ lapex_crypto_exit:
     - if <[owner].is_online||false>:
         - adjust <[owner]> gamemode:<[old_gamemode]>
         - adjust <[owner]> fov_multiplier:1
-        - if <[origin]> != null && <[reason]> != quit && <[reason]> != death:
-            - teleport <[owner]> <[origin]>
+        - if <[return_location]> != null && <[reason]> != death:
+            - teleport <[owner]> <[return_location]>
         - if <[reason]> == destroyed:
             - actionbar "<red>DRONE DESTROYED" targets:<[owner]>
         - else if <[reason]> == body_hit:
@@ -388,6 +454,10 @@ lapex_crypto_exit:
     - flag <[owner]> lapex.crypto_drone_health:!
     - flag <[owner]> lapex.crypto_destroyed:!
     - flag <[owner]> lapex.crypto_body_chunk:!
+    - flag <[owner]> lapex.crypto_body_pending_damage:!
+    - flag <[owner]> lapex.crypto_body_pending_attacker:!
+    - flag <[owner]> lapex.crypto_body_pending_cause:!
+    - flag <[owner]> lapex.crypto_body_pending_flush:!
     # Destruction uses the official recovery window. A normal recall only gets
     # a short input lock so it cannot be spammed in the same client tick.
     - if <[reason]> == destroyed:
@@ -420,16 +490,33 @@ lapex_tactical_fuse:
 
 lapex_tactical_gibraltar:
     type: task
+    debug: false
     script:
-    - define center <player.location>
+    - define desired <player.location.forward[2]>
+    - define center <proc[lapex_legend_safe_destination].context[<[desired]>|null]||null>
+    - if <[center]> == null:
+        - flag player lapex.cooldown.tactical:!
+        - actionbar "<red>NO SAFE DOME LOCATION"
+        - stop
+    - define spawn_tag lapex_dome_<util.random_uuid>
+    - ~run lapex_native_spawn_armor_stand def.location:<[center]> def.tag:<[spawn_tag]> def.arms:false def.small:true def.marker:true
+    - define device <server.flag[lapex.native_spawn_result.<[spawn_tag]>]||null>
+    - flag server lapex.native_spawn_result.<[spawn_tag]>:!
+    - if <[device]> == null:
+        - flag player lapex.cooldown.tactical:!
+        - actionbar "<red>DOME DEPLOY FAILED"
+        - stop
+    - adjust <[device]> gravity:false
+    - adjust <[device]> silent:true
+    - adjust <[device]> visible:false
+    - adjust <[device]> base_plate:false
+    - adjust <[device]> collidable:false
+    - equip <[device]> head:<item[lapex_model_gibraltar_dome]>
+    - flag <[device]> lapex.deployable_invulnerable
+    - flag <[device]> lapex.deployable_state:active
+    - flag <[device]> lapex.gibraltar_dome_active expire:12s
+    - run lapex_deployable_register def.owner:<player> def.entity:<[device]> def.kind:gibraltar_dome def.health:1 def.max_count:1 "def.label:<aqua>DOME"
     - playsound <[center]> sound:block.beacon.activate pitch:0.8 volume:1
-    - repeat 15:
-        - if !<player.is_online>:
-            - stop
-        - playeffect effect:dust at:<[center].above[2]> offset:5 quantity:32 special_data:[size=1.25;color=80,170,255]
-        - foreach <proc[lapex_legend_allies_near].context[<[center]>|6|<player>]> as:target:
-            - flag <[target]> lapex.legend_protected expire:1.3s
-        - wait 1s
 
 lapex_tactical_horizon:
     type: task
@@ -447,17 +534,35 @@ lapex_tactical_horizon:
 
 lapex_tactical_lifeline:
     type: task
+    debug: false
     script:
-    - define drone <player.location.forward[2].above[1]>
-    - playsound <[drone]> sound:block.beacon.activate pitch:1.6 volume:0.7
-    - repeat 20:
-        - if !<player.is_online>:
-            - stop
-        - playeffect effect:heart at:<[drone]> offset:0.45 quantity:5
-        - define allies <proc[lapex_legend_allies_near].context[<[drone]>|7|<player>]>
-        - if !<[allies].is_empty>:
-            - heal 1 <[allies]>
-        - wait 1s
+    - define desired <player.location.forward[2]>
+    - define location <proc[lapex_legend_safe_destination].context[<[desired]>|null]||null>
+    - if <[location]> == null:
+        - flag player lapex.cooldown.tactical:!
+        - actionbar "<red>NO SAFE D.O.C. LOCATION"
+        - stop
+    - define spawn_tag lapex_doc_<util.random_uuid>
+    - define doc_start <player.location.with_pitch[0].backward[1.2].right[0.8].above[0.5]>
+    - ~run lapex_native_spawn_armor_stand def.location:<[doc_start]> def.tag:<[spawn_tag]> def.arms:false def.small:true def.marker:true
+    - define device <server.flag[lapex.native_spawn_result.<[spawn_tag]>]||null>
+    - flag server lapex.native_spawn_result.<[spawn_tag]>:!
+    - if <[device]> == null:
+        - flag player lapex.cooldown.tactical:!
+        - actionbar "<red>D.O.C. DEPLOY FAILED"
+        - stop
+    - adjust <[device]> gravity:false
+    - adjust <[device]> silent:true
+    - adjust <[device]> visible:false
+    - adjust <[device]> base_plate:false
+    - adjust <[device]> collidable:false
+    - equip <[device]> head:<item[lapex_model_lifeline_doc]>
+    - flag <[device]> lapex.deployable_invulnerable
+    - flag <[device]> lapex.deployable_state:active
+    - flag <[device]> lapex.lifeline_doc_target:<player>
+    - flag <[device]> lapex.lifeline_doc_active expire:20s
+    - run lapex_deployable_register def.owner:<player> def.entity:<[device]> def.kind:lifeline_doc def.health:1 def.max_count:1 "def.label:<green>D.O.C."
+    - playsound <[device]> sound:block.beacon.activate pitch:1.6 volume:0.7
 
 lapex_tactical_loba:
     type: task
@@ -513,11 +618,30 @@ lapex_tactical_newcastle:
 lapex_tactical_octane:
     type: task
     script:
+    - if <player.has_flag[lapex.stim_active]> && !<player.has_flag[lapex.stim_surge_cooldown]>:
+        - flag player lapex.stim_active expire:6s
+        - flag player lapex.stim_surge expire:6s
+        - flag player lapex.stim_surge_cooldown expire:20s
+        - cast speed duration:6s amplifier:2 <player>
+        - playeffect effect:electric_spark at:<player.location.above[1]> offset:0.35 quantity:12
+        - playsound <player> sound:block.conduit.activate pitch:1.8 volume:0.7
+        - actionbar "<green>STIM SURGE <white>6s <dark_gray>| <gray>SWIFT MEND ACTIVE"
+        - stop
+    # EA does not publish the current exact health cost. Twenty Apex HP remains
+    # an explicit Lapex tuning value for normal Stim uses.
     - define cost <element[20].mul[<script[lapex_weapon_data].data_key[damage_scale]>]>
-    - if <player.health> > <[cost].add[0.5]>:
-        - hurt <[cost]> <player> cause:CUSTOM source:<player>
+    # Stim cannot kill its user, but it must still spend every available point
+    # above the minimum health floor. At the floor, reject the use instead of
+    # granting a free speed boost.
+    - define payable <[cost].min[<player.health.sub[0.5]>]>
+    - if <[payable]> <= 0:
+        - actionbar "<red>TOO LITTLE HEALTH TO STIM"
+        - playsound <player> sound:block.dispenser.fail pitch:1.2 volume:0.55
+        - flag player lapex.cooldown.tactical:!
+        - stop
+    - hurt <[payable]> <player> cause:CUSTOM source:<player>
+    - flag player lapex.stim_active expire:6s
     - cast speed duration:6s amplifier:2 <player>
-    - cast jump_boost duration:6s amplifier:1 <player>
     - playeffect effect:happy_villager at:<player.location.above[1]> offset:0.35 quantity:10
     - playsound <player> sound:block.brewing_stand.brew pitch:1.8 volume:0.7
 
@@ -560,7 +684,10 @@ lapex_tactical_seer:
     - define impact <player.eye_location.ray_trace[range=38;entities=living;ignore=<player>;raysize=1.2;default=air]>
     - playeffect effect:dust at:<player.eye_location.forward[0.8].points_between[<[impact]>].distance[1.5]> offset:0.3 quantity:4 special_data:[size=0.8;color=80,210,255]
     - playsound <player> sound:block.sculk_sensor.clicking pitch:1.6 volume:0.8
-    - run lapex_legend_damage_sphere def.location:<[impact]> def.radius:8 def.damage:10 def.effect:silence
+    - foreach <[impact].find_entities[living].within[8]> as:target:
+        - define combat_player <proc[lapex_legend_combat_player].context[<[target]>]>
+        - if <[combat_player]> != null && !<proc[lapex_legend_is_ally].context[<player>|<[target]>]> && !<[combat_player].has_flag[lapex.legend_protected]> && !<[combat_player].has_flag[lapex.phased]>:
+            - flag <[combat_player]> lapex.legend_silenced expire:8s
     - run lapex_legend_scan def.location:<[impact]> def.radius:10 def.duration:8s
 
 lapex_tactical_sparrow:

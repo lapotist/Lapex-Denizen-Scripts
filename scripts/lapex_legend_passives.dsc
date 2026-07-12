@@ -14,7 +14,13 @@ lapex_legend_passive_events:
         on player damaged:
         - define victim <context.entity>
         - define damager <context.damager||null>
-        - if <[damager]> != null && <[victim].has_flag[lapex.legend_protected]>:
+        # A launch-pad landing owns this token. Keep it a few ticks beyond the
+        # server's ground check so Paper's fall event cannot race the air loop.
+        - if <context.cause> == FALL && <[victim].has_flag[lapex.octane_fall_safe]>:
+            - adjust <[victim]> fall_distance:0
+            - flag <[victim]> lapex.octane_fall_safe:!
+            - determine cancelled
+        - if <[damager]> != null && <[damager]> != <[victim]> && <[victim].has_flag[lapex.legend_protected]>:
             - playeffect effect:electric_spark at:<[victim].location.above[1]> offset:0.3 quantity:8
             - determine cancelled
         - define projectile <context.projectile||null>
@@ -24,12 +30,12 @@ lapex_legend_passive_events:
         - if <[victim].has_flag[lapex.pylon_protected]> && <list[BLOCK_EXPLOSION|ENTITY_EXPLOSION].contains[<context.cause>]||false>:
             - playeffect effect:electric_spark at:<[victim].location.above[1]> offset:0.3 quantity:8
             - determine cancelled
-        - if <[damager]> != null && <[victim].has_flag[lapex.phased]>:
+        - if <[victim].has_flag[lapex.phased]>:
             - determine cancelled
 
         # Gun Shield absorbs one incoming hit while Gibraltar is braced, then
         # spends its current nine-second recharge.
-        - if <[damager]> != null && <[victim].flag[lapex.legend]||bangalore> == gibraltar && <[victim].is_sneaking> && !<[victim].has_flag[lapex.gun_shield_cooldown]>:
+        - if <[damager]> != null && <[victim].flag[lapex.legend]||bangalore> == gibraltar && <[victim].has_flag[lapex.ads]> && !<[victim].has_flag[lapex.gun_shield_cooldown]>:
             - flag <[victim]> lapex.gun_shield_cooldown expire:9s
             - playeffect effect:electric_spark at:<[victim].eye_location.forward[0.5]> offset:0.25 quantity:12
             - playsound <[victim]> sound:item.shield.block pitch:1.25 volume:0.75
@@ -46,9 +52,6 @@ lapex_legend_passive_events:
                     - flag <[victim]> lapex.double_time_cooldown expire:5s
                     - cast speed duration:3s amplifier:1 <[victim]>
                     - playsound <[victim]> sound:entity.horse.gallop pitch:1.5 volume:0.45
-            - case catalyst:
-                - if <[victim].has_flag[lapex.barricaded]>:
-                    - determine <context.damage.mul[0.5]>
             - case fuse:
                 - if <list[BLOCK_EXPLOSION|ENTITY_EXPLOSION|FIRE|FIRE_TICK].contains[<context.cause>]||false>:
                     - determine <context.damage.mul[0.5]>
@@ -59,9 +62,16 @@ lapex_legend_passive_events:
         # These combat flags are also populated by the hitscan engine. This
         # path covers melee, projectiles, and legend ability damage.
         on entity damaged:
-        - define source <context.damager||null>
+        - define damager <context.damager||null>
+        - define source null
+        - if <[damager]> != null:
+            - define source <[damager].shooter||<[damager]>>
         - if <[source]> == null || !<[source].is_player||false> || <[source]> == <context.entity>:
             - stop
+        # Phase transit blocks outgoing vanilla melee and projectiles too. Gun
+        # and ability entry points already reject the same shared flag.
+        - if <[source].has_flag[lapex.phased]>:
+            - determine cancelled
         - if <context.entity.has_flag[lapex.legend_protected]> || <context.entity.has_flag[lapex.phased]>:
             - stop
         - if <context.entity.has_flag[lapex.pylon_protected]> && <context.projectile||null> != null:
@@ -81,6 +91,8 @@ lapex_legend_passive_events:
                 - playsound <[source]> sound:block.brewing_stand.brew pitch:0.7 volume:0.6
 
         on player jumps:
+        - if <player.has_flag[lapex.legend_grounded]>:
+            - stop
         - if <player.flag[lapex.legend]||bangalore> == horizon:
             - cast slow_falling duration:2.5s amplifier:0 <player> no_ambient hide_particles
             - cast speed duration:2s amplifier:0 <player> no_ambient hide_particles
@@ -88,17 +100,28 @@ lapex_legend_passive_events:
         # Sneak in midair is the keyboard-safe second movement input used for
         # abilities that normally require an extra jump or jet button.
         on player starts sneaking:
+        - if <player.has_flag[lapex.legend_grounded]>:
+            - stop
+        # One physical key press may satisfy several movement abilities. The
+        # active ride state owns it before the selected legend passive does.
+        - if <player.has_flag[lapex.octane_double_ready]>:
+            - run lapex_octane_double_jump def.target:<player>
+            - stop
+        - if <player.has_flag[lapex.nitro_token]>:
+            - run lapex_slide_stop def.target:<player> def.reason:input
+            - stop
         - choose <player.flag[lapex.legend]||bangalore>:
             - case ash:
                 - if !<player.is_on_ground> && !<player.has_flag[lapex.predator_dash_cooldown]>:
                     - flag player lapex.predator_dash_cooldown expire:10s
-                    - push <player> origin:<player.location> destination:<player.eye_location.forward[8]> speed:1.6 duration:8t no_damage
+                    - define eye <player.eye_location>
+                    - define impulse <[eye].forward[1.25].sub[<[eye]>]>
+                    - adjust <player> velocity:<[impulse]>
                     - playeffect effect:portal at:<player.location.above[1]> offset:0.35 quantity:14
             - case axle:
-                - if <player.is_on_ground> && !<player.has_flag[lapex.drift_cooldown]>:
-                    - flag player lapex.drift_cooldown expire:1.5s
-                    - push <player> origin:<player.location> destination:<player.location.forward[8]> speed:1.35 duration:7t no_damage
-                    - cast speed duration:1.5s amplifier:1 <player>
+                - if <player.is_on_ground> && <player.is_sprinting> && !<player.has_flag[lapex.drift_cooldown]>:
+                    - flag player lapex.drift_cooldown expire:2s
+                    - run lapex_slide_start def.target:<player> def.steps:20 def.speed:1.1 def.steering:0.45 def.source:drift
             - case lifeline:
                 - if !<player.is_on_ground> && !<player.has_flag[lapex.combat_glide_cooldown]>:
                     - flag player lapex.combat_glide_cooldown expire:7s
@@ -125,22 +148,44 @@ lapex_legend_passive_events:
             - cast speed duration:1.5s amplifier:0 <player> no_ambient hide_particles
             - playsound <player> sound:item.armor.equip_chain pitch:1.7 volume:0.4
 
-        # Beacons stand in for survey/ring consoles. Doors provide a short
-        # defensive state because Minecraft has no ownership-aware door health.
+        # Beacons stand in for survey/ring consoles. A reinforced door owns
+        # exactly its two matching block halves; trapdoors and neighboring floor
+        # blocks must never inherit barricade state.
         on player right clicks block:
         - define location <context.location||null>
         - if <[location]> == null:
             - stop
         - define material <[location].material.name>
+        - define door_parts <list>
+        - define existing_owner null
+        - if <[material].ends_with[_door]> && !<[material].ends_with[_trapdoor]>:
+            - if <[location].below.material.name> == <[material]>:
+                - define door_lower <[location].below>
+            - else if <[location].above.material.name> == <[material]>:
+                - define door_lower <[location]>
+            - else:
+                - define door_lower null
+            - if <[door_lower]> != null:
+                - define door_parts <list[<[door_lower]>|<[door_lower].above>]>
+                - define existing_owner <[door_lower].flag[lapex.catalyst_owner]||<[door_lower].above.flag[lapex.catalyst_owner]||null>>
+        # Reinforcement is ownership-aware for every legend. Enemies must break
+        # the door rather than opening it or replacing its owner with Catalyst.
+        - if <[existing_owner]> != null && !<proc[lapex_legend_is_ally].context[<[existing_owner]>|<player>]>:
+            - determine passively cancelled
+            - playsound <[location]> sound:item.shield.block pitch:0.65 volume:0.55
+            - actionbar "<light_purple>ENEMY REINFORCED DOOR <gray>- break through" targets:<player>
+            - stop
         - choose <player.flag[lapex.legend]||bangalore>:
             - case catalyst:
-                - if <[material].ends_with[_door]> && <player.is_sneaking> && !<player.has_flag[lapex.barricade_cooldown]>:
+                - if !<[door_parts].is_empty> && <[existing_owner]> == null && <player.is_sneaking> && !<player.has_flag[lapex.barricade_cooldown]>:
                     - determine passively cancelled
                     - flag player lapex.barricade_cooldown expire:12s
-                    - flag player lapex.barricaded expire:8s
-                    - switch <[location]> state:off
-                    - playeffect effect:portal at:<[location].above[1]> offset:0.5 quantity:18
-                    - actionbar "<light_purple>BARRICADE REINFORCED" targets:<player>
+                    - foreach <[door_parts]> as:door_part:
+                        - flag <[door_part]> lapex.catalyst_owner:<player> expire:30s
+                        - flag <[door_part]> lapex.catalyst_health:3 expire:30s
+                    - switch <[door_parts].first> state:off
+                    - playeffect effect:portal at:<[door_parts].first.above[1]> offset:0.5 quantity:18
+                    - actionbar "<light_purple>BARRICADE REINFORCED <white>3 HITS" targets:<player>
             - case pathfinder:
                 - if <[material]> == beacon && !<player.has_flag[lapex.insider_scan_cooldown]>:
                     - flag player lapex.insider_scan_cooldown expire:30s
@@ -154,6 +199,49 @@ lapex_legend_passive_events:
                     - playeffect effect:happy_villager at:<[location].above[1]> offset:0.5 quantity:18
                     - actionbar "<green>INSIDER KNOWLEDGE: ZIPLINE CHARGED" targets:<player>
 
+        on player breaks block:
+        - define location <context.location>
+        - define material <[location].material.name>
+        # Clear a legacy flag that may have been written to a neighboring block
+        # by an older script version, but never intercept that block's break.
+        - if !<[material].ends_with[_door]> || <[material].ends_with[_trapdoor]>:
+            - if <[location].has_flag[lapex.catalyst_owner]>:
+                - flag <[location]> lapex.catalyst_owner:!
+                - flag <[location]> lapex.catalyst_health:!
+            - stop
+        - if <[location].below.material.name> == <[material]>:
+            - define door_lower <[location].below>
+        - else if <[location].above.material.name> == <[material]>:
+            - define door_lower <[location]>
+        - else:
+            - flag <[location]> lapex.catalyst_owner:!
+            - flag <[location]> lapex.catalyst_health:!
+            - stop
+        - define door_parts <list[<[door_lower]>|<[door_lower].above>]>
+        - define owner <[location].flag[lapex.catalyst_owner]||<[door_lower].flag[lapex.catalyst_owner]||<[door_lower].above.flag[lapex.catalyst_owner]||null>>>
+        - if <[owner]> == null:
+            - stop
+        - if <proc[lapex_legend_is_ally].context[<[owner]>|<player>]>:
+            - foreach <[door_parts]> as:door_part:
+                - flag <[door_part]> lapex.catalyst_owner:!
+                - flag <[door_part]> lapex.catalyst_health:!
+            - stop
+        - define health <[location].flag[lapex.catalyst_health]||<[door_lower].flag[lapex.catalyst_health]||<[door_lower].above.flag[lapex.catalyst_health]||1>>>
+        - if <[health]> <= 1:
+            - foreach <[door_parts]> as:door_part:
+                - flag <[door_part]> lapex.catalyst_owner:!
+                - flag <[door_part]> lapex.catalyst_health:!
+            - playsound <[location]> sound:block.iron_door.break pitch:0.75 volume:0.8
+            - stop
+        - determine passively cancelled
+        - define health <[health].sub[1]>
+        - foreach <[door_parts]> as:door_part:
+            - flag <[door_part]> lapex.catalyst_owner:<[owner]> expire:30s
+            - flag <[door_part]> lapex.catalyst_health:<[health]> expire:30s
+        - playeffect effect:portal at:<[location].center> offset:0.35 quantity:12
+        - playsound <[location]> sound:item.shield.block pitch:0.7 volume:0.6
+        - actionbar "<light_purple>REINFORCED DOOR <white><[health]> HITS" targets:<player>
+
 lapex_legend_passive_tick:
     type: task
     debug: false
@@ -161,6 +249,7 @@ lapex_legend_passive_tick:
     script:
     - if !<[target].is_online||false>:
         - stop
+    - run lapex_legend_charge_tick def.target:<[target]>
     - choose <[target].flag[lapex.legend]||bangalore>:
         - case alter:
             - if <[target].is_sneaking> && !<[target].has_flag[lapex.rift_pull_cooldown]>:
@@ -217,12 +306,12 @@ lapex_legend_passive_tick:
                     - cast regeneration duration:1.3s amplifier:0 <[ally]> no_ambient hide_particles
                     - cast slowness duration:1.3s amplifier:0 <[target]> no_ambient hide_particles
         - case octane:
-            - if !<[target].has_flag[lapex.recent_damage]> && <[target].health> < <[target].health_max>:
-                - heal 0.5 <[target]>
-            - if <[target].has_effect[speed]> && <[target].health.div[<[target].health_max>]> <= 0.4 && !<[target].has_flag[lapex.stim_surge_cooldown]>:
-                - flag <[target]> lapex.stim_surge_cooldown expire:26s
-                - cast regeneration duration:6s amplifier:1 <[target]>
-                - playsound <[target]> sound:block.brewing_stand.brew pitch:1.8 volume:0.55
+            - if <[target].has_flag[lapex.stim_surge]> && <[target].health> < <[target].health_max>:
+                - define missing <element[1].sub[<[target].health.div[<[target].health_max>]>]>
+                - define apex_heal <element[3].add[<[missing].mul[6]>]>
+                - heal <[apex_heal].mul[<script[lapex_weapon_data].data_key[damage_scale]>]> <[target]>
+            - else if !<[target].has_flag[lapex.recent_damage]> && <[target].health> < <[target].health_max>:
+                - heal 0.6 <[target]>
         - case revenant:
             - define low_targets <list>
             - foreach <[target].location.find_entities[player].within[24].exclude[<[target]>]> as:possible:
@@ -234,23 +323,77 @@ lapex_legend_passive_tick:
             - if !<[low_targets].is_empty>:
                 - run lapex_legend_private_outline def.viewer:<[target]> def.targets:<[low_targets]> def.duration:1.2s
         - case seer:
-            - if <[target].is_sneaking> && !<[target].has_flag[lapex.trigger]> && !<[target].has_flag[lapex.reloading]>:
-                - foreach <[target].location.find_entities[player].within[50].exclude[<[target]>]> as:possible:
-                    - if !<proc[lapex_legend_is_ally].context[<[target]>|<[possible]>]>:
+            - if <[target].has_flag[lapex.ads]> && !<[target].has_flag[lapex.trigger]> && !<[target].has_flag[lapex.reloading]>:
+                - foreach <[target].location.find_entities[living].within[50]> as:possible:
+                    - define combat_player <proc[lapex_legend_combat_player].context[<[possible]>]>
+                    - if <[combat_player]> != null && !<proc[lapex_legend_is_ally].context[<[target]>|<[possible]>]>:
                         - define distance <[target].location.distance[<[possible].location].round>
                         - actionbar "<aqua>HEARTBEAT <white><[distance]>m" targets:<[target]>
                         - playsound <[target]> sound:block.note_block.basedrum pitch:0.6 volume:0.25
                         - foreach stop
         - case vantage:
-            - if <[target].is_sneaking> && !<[target].has_flag[lapex.trigger]>:
-                - define spotted <[target].eye_location.ray_trace_target[range=80;entities=player;ignore=<[target]>;raysize=0.3]||null>
-                - if <[spotted]> != null && !<proc[lapex_legend_is_ally].context[<[target]>|<[spotted]>]> && !<[spotted].has_flag[lapex.phased]>:
+            # Ultimate rounds charge in the background even while A-13 is in a
+            # backpack slot. The due time is player state; ammo stays on the
+            # individual gun item.
+            - define a13_found false
+            - define a13_slot null
+            - define a13_ammo 0
+            - define a13_max <script[lapex_weapon_data].data_key[weapons.a13_sentry.mag]>
+            - foreach <[target].inventory.list_contents> key:slot as:item:
+                - if <[item].flag[lapex.id]||null> == a13_sentry:
+                    - define a13_found true
+                    - define a13_slot <[slot]>
+                    - define ammo <[item].flag[lapex.ammo]||0>
+                    - if <[ammo]> > <[a13_max]>:
+                        - define ammo <[a13_max]>
+                        - inventory flag destination:<[target].inventory> slot:<[slot]> lapex.ammo:<[ammo]>
+                    - define a13_ammo <[ammo]>
+                    - if <[ammo]> >= <[a13_max]>:
+                        - flag <[target]> lapex.a13_regen_due:!
+                        - flag <[target]> lapex.a13_tracking_progress:!
+                    - else:
+                        - define due <[target].flag[lapex.a13_regen_due]||null>
+                        - if <[due]> == null:
+                            - flag <[target]> lapex.a13_regen_due:<util.time_now.add[40s]>
+                        - else if <[due].is_before[<util.time_now>]||false>:
+                            - define a13_ammo <[ammo].add[1].min[<[a13_max]>]>
+                            - inventory flag destination:<[target].inventory> slot:<[slot]> lapex.ammo:<[a13_ammo]>
+                            - if <[a13_ammo]> < <[a13_max]>:
+                                - flag <[target]> lapex.a13_regen_due:<util.time_now.add[40s]>
+                            - else:
+                                - flag <[target]> lapex.a13_regen_due:!
+                                - flag <[target]> lapex.a13_tracking_progress:!
+                            - actionbar "<red>A-13 ROUND READY <white><[a13_ammo]>/<[a13_max]>" targets:<[target]>
+                    - foreach stop
+            - if !<[a13_found]>:
+                - flag <[target]> lapex.a13_regen_due:!
+                - flag <[target]> lapex.a13_tracking_progress:!
+            - if <[target].has_flag[lapex.ads]> && !<[target].has_flag[lapex.trigger]>:
+                - define spotted <[target].eye_location.ray_trace_target[range=80;entities=living;ignore=<[target]>;raysize=0.3]||null>
+                - define combat_spotted <proc[lapex_legend_combat_player].context[<[spotted]>]>
+                - if <[combat_spotted]> != null && !<proc[lapex_legend_is_ally].context[<[target]>|<[spotted]>]> && !<[combat_spotted].has_flag[lapex.phased]>:
                     - define distance <[target].location.distance[<[spotted].location].round>
-                    - actionbar "<red>SPOTTER <white><[spotted].health.round>/<[spotted].health_max.round> HP <gray>- <[distance]>m" targets:<[target]>
+                    - actionbar "<red>SPOTTER <white><[combat_spotted].health.round>/<[combat_spotted].health_max.round> HP <gray>- <[distance]>m" targets:<[target]>
                     - run lapex_legend_private_outline def.viewer:<[target]> def.targets:<list[<[spotted]>]> def.duration:1.2s
-                    - if !<[target].has_flag[lapex.spotter_team_cooldown]>:
-                        - flag <[target]> lapex.spotter_team_cooldown expire:10s
-                        - flag <[spotted]> lapex.vantage_spotted:<[target]> expire:10s
+                    - define tracked_team <[combat_spotted].flag[lapex.team]||<[combat_spotted].uuid>>
+                    - if !<[target].has_flag[lapex.spotter_team_cooldown.<[tracked_team]>]>:
+                        - flag <[target]> lapex.spotter_team_cooldown.<[tracked_team]> expire:10s
+                        # Fractional tracking charge exists only while the carried
+                        # A-13 magazine has room. Full or absent guns cannot bank
+                        # an unbounded reserve for later shots.
+                        - if <[a13_slot]> != null && <[a13_ammo]> < <[a13_max]>:
+                            - define tracking <[target].flag[lapex.a13_tracking_progress]||0>
+                            - define tracking <[tracking].max[0].min[0.999999].add[0.7]>
+                            - if <[tracking]> >= 1:
+                                - define a13_ammo <[a13_ammo].add[1].min[<[a13_max]>]>
+                                - inventory flag destination:<[target].inventory> slot:<[a13_slot]> lapex.ammo:<[a13_ammo]>
+                                - define tracking <[tracking].sub[1]>
+                                - actionbar "<red>TEAM TRACKED <gray>- <white>A-13 ROUND RESTORED" targets:<[target]>
+                            - if <[a13_ammo]> >= <[a13_max]>:
+                                - flag <[target]> lapex.a13_tracking_progress:!
+                                - flag <[target]> lapex.a13_regen_due:!
+                            - else:
+                                - flag <[target]> lapex.a13_tracking_progress:<[tracking]>
         - case wattson:
             - if !<[target].has_flag[lapex.recent_damage]> && !<[target].has_flag[lapex.spark_regen_cooldown]>:
                 - flag <[target]> lapex.spark_regen_cooldown expire:4s
@@ -261,13 +404,109 @@ lapex_legend_passive_tick:
                 - actionbar "<light_purple>VOICE: DANGER CLOSE" targets:<[target]>
                 - playsound <[target]> sound:block.amethyst_block.chime pitch:0.7 volume:0.65
 
+lapex_legend_charge_tick:
+    type: task
+    debug: false
+    definitions: target
+    script:
+    - define groups <[target].flag[lapex.charge_groups]||<list>>
+    - define active_groups <[groups]>
+    - foreach <[groups]> as:group:
+        - define parts <[group].split[.]>
+        - define id <[parts].get[1]||null>
+        - define slot <[parts].get[2]||null>
+        - define kit <script[lapex_legend_data].data_key[legends.<[id]>]||null>
+        - if <[kit]> == null || !<list[tactical|ultimate].contains[<[slot]>]>:
+            - define active_groups <[active_groups].exclude[<[group]>]>
+            - flag <[target]> lapex.charge_due.<[group]>:!
+            - foreach next
+        - define due_list <[target].flag[lapex.charge_due.<[group]>]||<list>>
+        - define remaining <list>
+        - define restored 0
+        - foreach <[due_list]> as:due:
+            - if <[due].is_before[<util.time_now>]||false>:
+                - define restored <[restored].add[1]>
+            - else:
+                - define remaining <[remaining].include[<[due]>]>
+        - if <[restored]> > 0:
+            - define max_charges <[kit].get[<[slot]>_charges]||1>
+            - define charges <[target].flag[lapex.charges.<[group]>]||0>
+            - define charges <[charges].add[<[restored]>].min[<[max_charges]>]>
+            - flag <[target]> lapex.charges.<[group]>:<[charges]>
+            - if <[target].flag[lapex.legend]||bangalore> == <[id]>:
+                - actionbar "<green><[kit].get[<[slot]>]> CHARGE READY <white><[charges]>/<[max_charges]>" targets:<[target]>
+        - if <[remaining].is_empty>:
+            - flag <[target]> lapex.charge_due.<[group]>:!
+            - define active_groups <[active_groups].exclude[<[group]>]>
+        - else:
+            - flag <[target]> lapex.charge_due.<[group]>:<[remaining]>
+    - if <[active_groups].is_empty>:
+        - flag <[target]> lapex.charge_groups:!
+    - else:
+        - flag <[target]> lapex.charge_groups:<[active_groups]>
+
+# Console-safe persistence check. It restores every touched flag so contributors
+# can run it against an offline profile without changing that player's loadout.
+lapex_charge_smoke:
+    type: task
+    debug: false
+    definitions: target
+    script:
+    - if <[target]||null> == null:
+        - narrate "<red>[Lapex] Charge smoke needs a player."
+        - stop
+    - define saved_charges <[target].flag[lapex.charges]||null>
+    - define saved_due <[target].flag[lapex.charge_due]||null>
+    - define saved_groups <[target].flag[lapex.charge_groups]||null>
+    - define saved_legend <[target].flag[lapex.legend]||null>
+    - flag <[target]> lapex.legend:bangalore
+    - flag <[target]> lapex.charges:!
+    - flag <[target]> lapex.charge_due:!
+    - flag <[target]> lapex.charge_groups:!
+    - define future_due <util.time_now.add[1h]>
+    - flag <[target]> lapex.charges.pathfinder.tactical:0
+    - flag <[target]> lapex.charge_due.pathfinder.tactical:<list[<util.time_now.sub[1s]>|<[future_due]>]>
+    - flag <[target]> lapex.charge_groups:<list[pathfinder.tactical]>
+    - ~run lapex_legend_charge_tick def.target:<[target]>
+    - define passed false
+    - define remaining <[target].flag[lapex.charge_due.pathfinder.tactical]||<list>>
+    - if <[target].flag[lapex.charges.pathfinder.tactical]||0> == 1 && <[remaining].size> == 1 && <[remaining].contains[<[future_due]>]>:
+        # Two overdue entries may mature together, but restoration must stop at
+        # Pathfinder's two-charge maximum and retire the completed group.
+        - flag <[target]> lapex.charges.pathfinder.tactical:1
+        - flag <[target]> lapex.charge_due.pathfinder.tactical:<list[<util.time_now.sub[2s]>|<util.time_now.sub[1s]>]>
+        - ~run lapex_legend_charge_tick def.target:<[target]>
+        - if <[target].flag[lapex.charges.pathfinder.tactical]||0> == 2 && !<[target].has_flag[lapex.charge_due.pathfinder.tactical]> && !<[target].has_flag[lapex.charge_groups]>:
+            - define passed true
+    - if <[saved_charges]> == null:
+        - flag <[target]> lapex.charges:!
+    - else:
+        - flag <[target]> lapex.charges:<[saved_charges]>
+    - if <[saved_due]> == null:
+        - flag <[target]> lapex.charge_due:!
+    - else:
+        - flag <[target]> lapex.charge_due:<[saved_due]>
+    - if <[saved_groups]> == null:
+        - flag <[target]> lapex.charge_groups:!
+    - else:
+        - flag <[target]> lapex.charge_groups:<[saved_groups]>
+    - if <[saved_legend]> == null:
+        - flag <[target]> lapex.legend:!
+    - else:
+        - flag <[target]> lapex.legend:<[saved_legend]>
+    - if <[passed]>:
+        - narrate "<green>Lapex charge smoke passed: due ordering, charge cap, and test-flag rollback."
+    - else:
+        - narrate "<red>Lapex charge smoke failed due ordering or cap restoration."
+
 lapex_legend_low_ally:
     type: procedure
     definitions: source|radius
     script:
-    - foreach <[source].location.find_entities[player].within[<[radius]>].exclude[<[source]>]> as:possible:
-        - if <proc[lapex_legend_is_ally].context[<[source]>|<[possible]>]> && <[possible].health.div[<[possible].health_max>]> <= 0.4:
-            - determine <[possible]>
+    - foreach <[source].location.find_entities[living].within[<[radius]>]> as:possible:
+        - define combat_player <proc[lapex_legend_combat_player].context[<[possible]>]>
+        - if <[combat_player]> != null && <[combat_player]> != <[source]> && <proc[lapex_legend_is_ally].context[<[source]>|<[possible]>]> && <[combat_player].health.div[<[combat_player].health_max>]> <= 0.4:
+            - determine <[combat_player]>
     - determine null
 
 lapex_legend_private_outline:
@@ -297,9 +536,12 @@ lapex_passive_crypto_neurolink:
     definitions: source|location
     script:
     - define hostiles <list>
-    - foreach <[location].find_entities[player].within[30]> as:possible:
-        - if !<proc[lapex_legend_is_ally].context[<[source]>|<[possible]>]> && !<[possible].has_flag[lapex.phased]>:
+    - define seen_players <list>
+    - foreach <[location].find_entities[living].within[30]> as:possible:
+        - define combat_player <proc[lapex_legend_combat_player].context[<[possible]>]>
+        - if <[combat_player]> != null && !<[seen_players].contains[<[combat_player].uuid>]> && !<proc[lapex_legend_is_ally].context[<[source]>|<[possible]>]> && !<[combat_player].has_flag[lapex.phased]>:
             - define hostiles <[hostiles].include[<[possible]>]>
+            - define seen_players <[seen_players].include[<[combat_player].uuid>]>
     - if <[hostiles].is_empty>:
         - stop
     - foreach <[source].location.find_entities[player].within[64]> as:viewer:

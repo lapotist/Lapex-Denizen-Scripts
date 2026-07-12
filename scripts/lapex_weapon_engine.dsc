@@ -84,21 +84,39 @@ lapex_weapon_events:
         - run lapex_weapon_migrate_held
 
         on player joins:
-        - adjust <player> fov_multiplier:1
+        - run lapex_weapon_reset_transient def.target:<player>
         - wait 1t
         - run lapex_weapon_migrate_held
 
         on player quits:
-        - flag player lapex.trigger:!
-        - flag player lapex.action_lock:!
-        - flag player lapex.burst:!
-        - flag player lapex.charging:!
-        - flag player lapex.spinup:!
-        - flag player lapex.secondary:!
-        - flag player lapex.reloading:!
-        - flag player lapex.ads:!
-        - flag player lapex.ads_token:!
-        - adjust <player> fov_multiplier:1
+        - run lapex_weapon_reset_transient def.target:<player>
+
+        on player dies:
+        - run lapex_weapon_reset_transient def.target:<player>
+        - run lapex_weapon_clear_item_charges def.target:<player>
+
+        on player respawns:
+        - run lapex_weapon_reset_transient def.target:<player>
+
+lapex_weapon_reset_transient:
+    type: task
+    debug: false
+    definitions: target
+    script:
+    - foreach <list[trigger|action_lock|burst|charging|spinup|auto_loop|secondary|reloading|ads|ads_token|jammed|whistler_heat|whistler_source|sentinel_amped|rampage_amped]> as:state:
+        - flag <[target]> lapex.<[state]>:!
+    - adjust <[target]> fov_multiplier:1
+
+lapex_weapon_clear_item_charges:
+    type: task
+    debug: false
+    definitions: target
+    script:
+    - foreach <[target].inventory.list_contents> key:slot as:item:
+        - if <[item].has_flag[lapex.sentinel_amped]>:
+            - inventory flag destination:<[target].inventory> slot:<[slot]> lapex.sentinel_amped:!
+        - if <[item].has_flag[lapex.rampage_amped]>:
+            - inventory flag destination:<[target].inventory> slot:<[slot]> lapex.rampage_amped:!
 
 lapex_weapon_ads:
     type: task
@@ -250,15 +268,17 @@ lapex_weapon_auto:
             - flag player lapex.auto_loop:!
             - stop
         - flag player lapex.spinup:!
-    - define rpm <[weapon].get[rpm]>
-    - if <[id]> == rampage && <player.has_flag[lapex.rampage_amped]>:
-        - define rpm 390
-    - define ticks_per_shot <element[1200].div[<[rpm]>]>
-    - define accumulator <[ticks_per_shot]>
+    - define accumulator <element[1200].div[<[weapon].get[rpm]>]>
     - while <player.is_online> && <player.health||0> > 0 && <player.flag[lapex.trigger]||null> == <[id]>:
         - flag player lapex.auto_loop:<[id]> expire:5t
         - if <player.item_in_hand.flag[lapex.id]||null> != <[id]> || <player.has_flag[lapex.reloading]> || <player.has_flag[lapex.action_lock]> || <player.has_flag[lapex.jammed]> || <player.has_flag[lapex.phased]>:
             - while stop
+        # Re-evaluate rev state during held fire so expiry immediately restores
+        # the base Rampage cadence without requiring the player to release.
+        - define rpm <[weapon].get[rpm]>
+        - if <[id]> == rampage && <player.item_in_hand.has_flag[lapex.rampage_amped]>:
+            - define rpm 390
+        - define ticks_per_shot <element[1200].div[<[rpm]>]>
         - define accumulator <[accumulator].add[1]>
         - if <[accumulator]> >= <[ticks_per_shot]>:
             - define accumulator <[accumulator].sub[<[ticks_per_shot]>]>
@@ -314,13 +334,11 @@ lapex_weapon_fire_once:
     # Firing while tagged by Whistler adds heat. At the threshold the weapon
     # overheats, damages its user, and briefly interrupts their next action.
     - if <player.has_flag[lapex.whistler_heat]> && !<list[sheila|a13_sentry].contains[<[id]>]>:
-        - flag player lapex.whistler_heat:+:1 expire:8s
+        - flag player lapex.whistler_heat:+:1 expire:15s
         - define heat_limit <script[lapex_weapon_data].data_key[whistler_overheat_shots]>
         - if <player.flag[lapex.whistler_heat]> >= <[heat_limit]>:
             - define source <player.flag[lapex.whistler_source]||<player>>
             - define overheat <script[lapex_weapon_data].data_key[whistler_overheat_damage].mul[<script[lapex_weapon_data].data_key[damage_scale]>]>
-            - if <player.health> <= <[overheat]>:
-                - define overheat <player.health.sub[0.5]>
             - if <[overheat]> > 0:
                 - hurt <[overheat]> <player> cause:CUSTOM source:<[source]>
             - cast slowness duration:1.2s amplifier:1 <player>
@@ -341,7 +359,7 @@ lapex_weapon_fire_once:
     - look <player> yaw:<[recoil_view].yaw> pitch:<[recoil_view].pitch>
 
     - define is_ads false
-    - if <player.flag[lapex.ads]||null> == <[id]> || <player.is_sneaking>:
+    - if <player.flag[lapex.ads]||null> == <[id]>:
         - define is_ads true
     - if <[is_ads]>:
         - define base_spread <[weapon].get[ads_spread]>
@@ -390,6 +408,15 @@ lapex_weapon_fire_once:
         - define aim <[eye].with_yaw[<[eye].yaw.add[<[yaw_offset]>]>].with_pitch[<[eye].pitch.add[<[pitch_offset]>]>]>
         - define target <[aim].ray_trace_target[range=<[range]>;entities=living;ignore=<player>;raysize=<[raysize]>]||null>
         - define impact <[aim].ray_trace[range=<[range]>;entities=living;ignore=<player>;raysize=<[raysize]>;default=air]>
+        # Dome collision is resolved before tracers, misses, Whistler mines, or
+        # damage. It is a two-way boundary and deliberately has no team check.
+        - define dome_block <proc[lapex_dome_trace_intersection].context[<[eye]>|<[impact]>]||null>
+        - if <[dome_block]> != null:
+            - if <[draw_tracer]> && <[pellet]> == 1 || <[draw_tracer]> && <[pellet]> == <[tracer_center]> || <[draw_tracer]> && <[pellet]> == <[pellets]>:
+                - run lapex_weapon_render_tracer def.start:<[muzzle]> def.end:<[dome_block]> def.color:<[weapon].get[tracer]> def.style:<[tracer_style]>
+            - playeffect effect:electric_spark at:<[dome_block]> offset:0.18 quantity:8
+            - playsound <[dome_block]> sound:item.shield.block pitch:1.45 volume:0.65
+            - repeat next
         - if <[draw_tracer]> && <[pellet]> == 1 || <[draw_tracer]> && <[pellet]> == <[tracer_center]> || <[draw_tracer]> && <[pellet]> == <[pellets]>:
             - run lapex_weapon_render_tracer def.start:<[muzzle]> def.end:<[impact]> def.color:<[weapon].get[tracer]> def.style:<[tracer_style]>
         - if <[target]> == null:
@@ -399,63 +426,73 @@ lapex_weapon_fire_once:
                 - playeffect effect:smoke at:<[impact]> offset:0.03 quantity:2 data:0.01
             - repeat next
 
+        # A Crypto mannequin is the physical ray target, but combat state
+        # belongs to the real player. Ordinary mobs and deployables keep their
+        # own state because they have no canonical player mapping.
+        - define state_target <[target]>
+        - define combat_target <proc[lapex_legend_combat_player].context[<[target]>]||null>
+        - if <[combat_target]> != null:
+            - define state_target <[combat_target]>
         - if <proc[lapex_legend_is_ally].context[<player>|<[target]>]>:
+            - if <[target].flag[lapex.deployable_kind]||null> == caustic_trap:
+                - run lapex_caustic_trigger def.entity:<[target]> def.session:<[target].flag[lapex.deployable_session]>
             - repeat next
-        - if <[target].has_flag[lapex.legend_protected]> || <[target].has_flag[lapex.phased]>:
+        - if <[state_target].has_flag[lapex.legend_protected]> || <[state_target].has_flag[lapex.phased]>:
             - playeffect effect:electric_spark at:<[impact]> offset:0.15 quantity:6
             - repeat next
-        - if <[id]> == whistler && <[target].has_flag[lapex.pylon_protected]>:
+        - if <[id]> == whistler && <[state_target].has_flag[lapex.pylon_protected]>:
             - playeffect effect:electric_spark at:<[impact]> offset:0.15 quantity:6
             - repeat next
 
         - define damage <[weapon].get[damage].mul[<script[lapex_weapon_data].data_key[damage_scale]>]>
-        - define height_fraction <[impact].y.sub[<[target].location.y>].div[<[target].height||1.8>]>
+        - define is_deployable <[target].has_flag[lapex.deployable_kind]>
         - define zone body
-        - if <[height_fraction]> >= <script[lapex_weapon_data].data_key[head_zone]>:
-            - define damage <[damage].mul[<[weapon].get[head_mult]>]>
-            - define zone head
-        - else if <[height_fraction]> <= <script[lapex_weapon_data].data_key[leg_zone]>:
-            - define damage <[damage].mul[<[weapon].get[leg_mult]>]>
-            - define zone legs
+        - if !<[is_deployable]>:
+            - define height_fraction <[impact].y.sub[<[target].location.y>].div[<[target].height||1.8>]>
+            - if <[height_fraction]> >= <script[lapex_weapon_data].data_key[head_zone]>:
+                - define damage <[damage].mul[<[weapon].get[head_mult]>]>
+                - define zone head
+            - else if <[height_fraction]> <= <script[lapex_weapon_data].data_key[leg_zone]>:
+                - define damage <[damage].mul[<[weapon].get[leg_mult]>]>
+                - define zone legs
 
         # Charge Rifle damage rises at long range. This preserves its current
         # projectile identity while using hitscan at Minecraft distances.
         - if <[id]> == charge_rifle:
             - define distance <[eye].distance[<[impact]>]>
-            - if <[distance]> >= 160:
-                - define damage <[damage].mul[1.45]>
+            - if <[distance]> >= 200:
+                - define damage <[damage].mul[1.4667]>
             - else if <[distance]> >= 100:
                 - define damage <[damage].mul[1.25]>
 
         # A-13's own follow-up hit is doubled. Every other Lapex gun receives
         # the shared mark bonus while the target remains marked.
-        - if <[id]> == a13_sentry:
-            - if <[target].flag[lapex.vantage_mark]||null> == <player>:
-                - define damage <[damage].mul[<script[lapex_weapon_data].data_key[vantage_followup_multiplier]>]>
-            - else if <[target].has_flag[lapex.vantage_mark]>:
+        - if !<[is_deployable]>:
+            - define mark_owner <[state_target].flag[lapex.vantage_mark]||null>
+            - if <[id]> == a13_sentry:
+                - if <[mark_owner]> == <player>:
+                    - define damage <[damage].mul[<script[lapex_weapon_data].data_key[vantage_followup_multiplier]>]>
+                - else if <[mark_owner]> != null && <proc[lapex_legend_is_ally].context[<[mark_owner]>|<player>]>:
+                    - define damage <[damage].mul[<script[lapex_weapon_data].data_key[mark_bonus]>]>
+            - else if <[mark_owner]> != null && <proc[lapex_legend_is_ally].context[<[mark_owner]>|<player>]>:
                 - define damage <[damage].mul[<script[lapex_weapon_data].data_key[mark_bonus]>]>
-        - else if <[target].has_flag[lapex.vantage_mark]>:
-            - define damage <[damage].mul[<script[lapex_weapon_data].data_key[mark_bonus]>]>
 
-        # Sentinel and thermite-charged Rampage states use player flags because
-        # the charge remains tied to the wielder and is cancelled by expiry.
-        - if <[id]> == sentinel && <player.has_flag[lapex.sentinel_amped]>:
+        # Charge flags live on the gun item, so charging one copy cannot power
+        # a different Sentinel or Rampage in the inventory.
+        - if <[id]> == sentinel && <player.item_in_hand.has_flag[lapex.sentinel_amped]>:
             - define damage <[damage].mul[1.25]>
-        - if <[id]> == rampage && <player.has_flag[lapex.rampage_amped]>:
-            - burn <[target]> duration:3s
-
         # Amped Cover increases outgoing damage while its pulsed zone flag is
         # active. Maggie's mark and the telemetry flags feed passive scans.
         - if <player.has_flag[lapex.amped_cover]>:
             - define damage <[damage].mul[1.2]>
-        - flag <[target]> lapex.last_attacker:<player> expire:10s
-        - flag <[target]> lapex.last_damage_location:<[impact]> expire:10s
-        - flag <[target]> lapex.threatened_by:<player> expire:4s
-        - flag player lapex.last_target:<[target]> expire:10s
-        - if <[target].health.sub[<[damage]>].div[<[target].health_max||20>]> <= 0.4:
-            - flag <[target]> lapex.low_health expire:6s
-        - if <player.flag[lapex.legend]||bangalore> == mad_maggie:
-            - flag <[target]> lapex.maggie_mark:<player> expire:3s
+        - flag <[state_target]> lapex.last_attacker:<player> expire:10s
+        - flag <[state_target]> lapex.last_damage_location:<[impact]> expire:10s
+        - flag <[state_target]> lapex.threatened_by:<player> expire:4s
+        - flag player lapex.last_target:<[state_target]> expire:10s
+        - if !<[is_deployable]> && <[state_target].health.sub[<[damage]>].div[<[state_target].health_max||20>]> <= 0.4:
+            - flag <[state_target]> lapex.low_health expire:6s
+        - if !<[is_deployable]> && <player.flag[lapex.legend]||bangalore> == mad_maggie:
+            - flag <[state_target]> lapex.maggie_mark:<player> expire:3s
             - run lapex_legend_private_outline def.viewer:<player> def.targets:<list[<[target]>]> def.duration:3s
 
         - define old_velocity <[target].velocity>
@@ -467,14 +504,15 @@ lapex_weapon_fire_once:
         - if <[zone]> == head:
             - playsound <player> sound:block.note_block.bell pitch:2 volume:0.55
 
-        - if <[id]> == a13_sentry:
-            - flag <[target]> lapex.vantage_mark:<player> expire:10s
+        - if !<[is_deployable]> && <[id]> == a13_sentry:
+            - flag <[state_target]> lapex.vantage_mark:<player> expire:10s
             - playeffect effect:dust at:<[target].location.above[<[target].height||1.8>]> offset:0.2 quantity:8 special_data:[size=0.7;color=255,55,75]
-        - if <[id]> == whistler:
-            - flag <[target]> lapex.whistler_heat:1 expire:8s
-            - flag <[target]> lapex.whistler_source:<player> expire:8s
-            - playeffect effect:electric_spark at:<[target].location.above[1]> offset:0.35 quantity:12
-            - actionbar "<gold>Whistler <red>LOCKED"
+        - if !<[is_deployable]> && <[id]> == whistler:
+            - if !<[state_target].has_flag[lapex.whistler_heat]>:
+                - flag <[state_target]> lapex.whistler_heat:1 expire:15s
+                - flag <[state_target]> lapex.whistler_source:<player> expire:15s
+                - playeffect effect:electric_spark at:<[target].location.above[1]> offset:0.35 quantity:12
+                - actionbar "<gold>Whistler <red>LOCKED"
 
     - actionbar "<gold><[weapon].get[name]> <white><[ammo]><gray>/<[max_mag]>"
     - if <[ammo]> <= 0 && <[weapon].get[auto_reload]||false>:
@@ -518,6 +556,9 @@ lapex_weapon_reload:
     definitions: id
     script:
     - if <player.has_flag[lapex.reloading]> || <player.has_flag[lapex.action_lock]> || <player.has_flag[lapex.secondary]> || <player.item_in_hand.flag[lapex.id]||null> != <[id]>:
+        - stop
+    - if <[id]> == a13_sentry:
+        - actionbar "<red>A-13 rounds regenerate automatically"
         - stop
     - define weapon <script[lapex_weapon_data].data_key[weapons.<[id]>]>
     - define max_mag <[weapon].get[mag]>
@@ -580,7 +621,6 @@ lapex_weapon_secondary:
     definitions: id
     script:
     - flag player lapex.trigger:!
-    - flag player lapex.secondary:<[id]> expire:30s
     - choose <[id]>:
         - case hemlok_breach:
             - run lapex_hemlok_breach_charge
@@ -599,14 +639,25 @@ lapex_whistler_mine:
     - repeat 40 as:pulse:
         - playeffect effect:electric_spark at:<[location]> offset:0.35 quantity:2
         - define target null
+        - define target_state null
         - foreach <[location].find_entities[living].within[2.5].exclude[<player>]> as:possible:
-            - if !<proc[lapex_legend_is_ally].context[<player>|<[possible]>]> && !<[possible].has_flag[lapex.legend_protected]> && !<[possible].has_flag[lapex.pylon_protected]> && !<[possible].has_flag[lapex.phased]>:
-                - define target <[possible]>
-                - foreach stop
+            - define possible_state <[possible]>
+            - define combat_possible <proc[lapex_legend_combat_player].context[<[possible]>]||null>
+            - if <[combat_possible]> != null:
+                - define possible_state <[combat_possible]>
+            - if <proc[lapex_legend_is_ally].context[<player>|<[possible]>]> || <[possible_state].has_flag[lapex.legend_protected]> || <[possible_state].has_flag[lapex.pylon_protected]> || <[possible_state].has_flag[lapex.phased]> || <[possible_state].has_flag[lapex.whistler_heat]>:
+                - foreach next
+            - define target_height <[possible].height||1.8>
+            - define target_center <[possible].location.above[<[target_height].div[2]>]>
+            - if <proc[lapex_dome_trace_intersection].context[<[location]>|<[target_center]>]||null> != null:
+                - foreach next
+            - define target <[possible]>
+            - define target_state <[possible_state]>
+            - foreach stop
         - if <[target]> != null:
-            - flag <[target]> lapex.whistler_heat:1 expire:8s
-            - flag <[target]> lapex.whistler_source:<player> expire:8s
-            - define damage <script[lapex_weapon_data].data_key[weapons.whistler].get[damage].mul[<script[lapex_weapon_data].data_key[damage_scale]>]>
+            - flag <[target_state]> lapex.whistler_heat:1 expire:15s
+            - flag <[target_state]> lapex.whistler_source:<player> expire:15s
+            - define damage <script[lapex_weapon_data].data_key[whistler_trap_damage].mul[<script[lapex_weapon_data].data_key[damage_scale]>]>
             - hurt <[damage]> <[target]> cause:PROJECTILE source:<player>
             - adjust <[target]> no_damage_duration:0s
             - playeffect effect:electric_spark at:<[target].location.above[1]> offset:0.35 quantity:12
@@ -620,6 +671,7 @@ lapex_hemlok_breach_charge:
     - if <player.has_flag[lapex.breach_cooldown]> || <player.has_flag[lapex.action_lock]>:
         - actionbar "<red>Breach Charge unavailable"
         - stop
+    - flag player lapex.secondary:hemlok_breach expire:30s
     - define weapon <script[lapex_weapon_data].data_key[weapons.hemlok_breach]>
     - flag player lapex.breach_cooldown expire:<[weapon].get[breach_cooldown]>
     - flag player lapex.action_lock expire:12t
@@ -630,8 +682,24 @@ lapex_hemlok_breach_charge:
         - stop
     - define eye <player.eye_location>
     - define impact <[eye].ray_trace[range=100;entities=living;ignore=<player>;raysize=0.35;default=air]>
+    - define dome_block <proc[lapex_dome_trace_intersection].context[<[eye]>|<[impact]>]||null>
+    - define damage_origin <[impact]>
+    - if <[dome_block]> != null:
+        - define impact <[dome_block]>
+        - define damage_origin <[impact]>
+        # Move radial traces slightly back toward the shooter. Starting exactly
+        # on the shell would otherwise make the near boundary ambiguous.
+        - define source_distance <[eye].distance[<[impact]>]>
+        - if <[source_distance]> > 0.1:
+            - define origin_x <[impact].x.add[<[eye].x.sub[<[impact].x>].div[<[source_distance]>].mul[0.1]>]>
+            - define origin_y <[impact].y.add[<[eye].y.sub[<[impact].y>].div[<[source_distance]>].mul[0.1]>]>
+            - define origin_z <[impact].z.add[<[eye].z.sub[<[impact].z>].div[<[source_distance]>].mul[0.1]>]>
+            - define damage_origin <[impact].with_x[<[origin_x]>].with_y[<[origin_y]>].with_z[<[origin_z]>]>
     - playeffect effect:dust at:<[eye].forward[0.8].points_between[<[impact]>].distance[2]> offset:0 quantity:1 special_data:[size=0.6;color=255,125,65]
     - playsound <[eye]> sound:entity.firework_rocket.launch pitch:0.7 volume:0.8
+    - if <[dome_block]> != null:
+        - playeffect effect:electric_spark at:<[impact]> offset:0.2 quantity:10
+        - playsound <[impact]> sound:item.shield.block pitch:1.35 volume:0.7
     - wait 2t
     - if <player.flag[lapex.secondary]||null> != hemlok_breach:
         - stop
@@ -639,7 +707,15 @@ lapex_hemlok_breach_charge:
     - playeffect effect:large_smoke at:<[impact]> offset:<[weapon].get[breach_radius].div[3]> quantity:24
     - playsound <[impact]> sound:entity.generic.explode pitch:1.15 volume:1.1
     - foreach <[impact].find_entities[living].within[<[weapon].get[breach_radius]>].exclude[<player>]> as:target:
-        - if <proc[lapex_legend_is_ally].context[<player>|<[target]>]> || <[target].has_flag[lapex.legend_protected]> || <[target].has_flag[lapex.pylon_protected]> || <[target].has_flag[lapex.phased]>:
+        - define target_state <[target]>
+        - define combat_target <proc[lapex_legend_combat_player].context[<[target]>]||null>
+        - if <[combat_target]> != null:
+            - define target_state <[combat_target]>
+        - if <proc[lapex_legend_is_ally].context[<player>|<[target]>]> || <[target_state].has_flag[lapex.legend_protected]> || <[target_state].has_flag[lapex.pylon_protected]> || <[target_state].has_flag[lapex.phased]>:
+            - foreach next
+        - define target_height <[target].height||1.8>
+        - define target_center <[target].location.above[<[target_height].div[2]>]>
+        - if <proc[lapex_dome_trace_intersection].context[<[damage_origin]>|<[target_center]>]||null> != null:
             - foreach next
         - define falloff <element[1].sub[<[target].location.distance[<[impact]>].div[<[weapon].get[breach_radius]>].mul[0.6]>]>
         - define damage <[weapon].get[breach_damage].mul[<[falloff]>].mul[<script[lapex_weapon_data].data_key[damage_scale]>]>
@@ -650,16 +726,17 @@ lapex_hemlok_breach_charge:
 lapex_sentinel_amp:
     type: task
     script:
-    - if <player.has_flag[lapex.sentinel_amped]> || <player.has_flag[lapex.action_lock]>:
+    - if <player.item_in_hand.has_flag[lapex.sentinel_amped]> || <player.has_flag[lapex.action_lock]>:
         - actionbar "<aqua>Sentinel is already amped"
         - stop
+    - flag player lapex.secondary:sentinel expire:30s
     - flag player lapex.action_lock expire:5s
     - actionbar "<aqua>Charging Sentinel..."
     - playsound <player> sound:block.beacon.activate pitch:1.2 volume:0.7
     - wait 5s
     - if <player.item_in_hand.flag[lapex.id]||null> != sentinel || <player.flag[lapex.secondary]||null> != sentinel:
         - stop
-    - flag player lapex.sentinel_amped expire:120s
+    - inventory flag slot:hand lapex.sentinel_amped expire:120s
     - playeffect effect:electric_spark at:<player.location.above[1]> offset:0.4 quantity:18
     - actionbar "<aqua>Sentinel Amped"
     - flag player lapex.secondary:!
@@ -667,16 +744,17 @@ lapex_sentinel_amp:
 lapex_rampage_amp:
     type: task
     script:
-    - if <player.has_flag[lapex.rampage_amped]> || <player.has_flag[lapex.action_lock]>:
+    - if <player.item_in_hand.has_flag[lapex.rampage_amped]> || <player.has_flag[lapex.action_lock]>:
         - actionbar "<red>Rampage is already revved"
         - stop
+    - flag player lapex.secondary:rampage expire:30s
     - flag player lapex.action_lock expire:4s
     - actionbar "<gold>Loading thermite..."
     - playsound <player> sound:item.firecharge.use pitch:0.8 volume:0.7
     - wait 4s
     - if <player.item_in_hand.flag[lapex.id]||null> != rampage || <player.flag[lapex.secondary]||null> != rampage:
         - stop
-    - flag player lapex.rampage_amped expire:90s
+    - inventory flag slot:hand lapex.rampage_amped expire:90s
     - playeffect effect:flame at:<player.location.above[1]> offset:0.35 quantity:15
     - actionbar "<gold>Rampage Revved"
     - flag player lapex.secondary:!

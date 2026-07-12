@@ -461,11 +461,11 @@ apex_a13_sentry:
     lore:
     - <gray>Vantage Ultimate | Sniper's Mark
     - <dark_gray>Hits mark targets and amplify follow-up damage
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Left-click fire | Hold right-click ADS | Rounds regenerate
     flags:
         lapex:
             id: a13_sentry
-            ammo: 6
+            ammo: 2
 
 apex_whistler:
     type: item
@@ -481,4 +481,4 @@ apex_whistler:
     flags:
         lapex:
             id: whistler
-            ammo: 1
+            ammo: 2

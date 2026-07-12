@@ -12,7 +12,8 @@ lapex_weapon_data:
     mark_bonus: 1.15
     vantage_followup_multiplier: 2.0
     whistler_overheat_shots: 5
-    whistler_overheat_damage: 15
+    whistler_overheat_damage: 50
+    whistler_trap_damage: 35
 
     standard_ids:
     - havoc
@@ -458,14 +459,14 @@ lapex_weapon_data:
             ammo: Sniper
             mode: charge
             damage: 75
-            head_mult: 1.5
-            leg_mult: 0.8
+            head_mult: 1.8
+            leg_mult: 0.7
             rpm: 26
             mag: 6
             reload: 3.5s
             empty_reload: 4.6s
             charge_ticks: 16
-            range: 190
+            range: 220
             hip_spread: 2.2
             ads_spread: 0.02
             recoil_pitch: 1.35
@@ -517,8 +518,8 @@ lapex_weapon_data:
             ammo: Sniper
             mode: semi
             damage: 70
-            head_mult: 1.75
-            leg_mult: 0.8
+            head_mult: 1.8
+            leg_mult: 0.7
             rpm: 37
             mag: 4
             reload: 3.0s
@@ -707,6 +708,7 @@ lapex_weapon_data:
             leg_mult: 0.8
             rpm: 60
             mag: 6
+            initial_ammo: 2
             reload: 40s
             empty_reload: 40s
             reload_style: shell
@@ -727,7 +729,7 @@ lapex_weapon_data:
             head_mult: 1.0
             leg_mult: 1.0
             rpm: 60
-            mag: 1
+            mag: 2
             reload: 25s
             empty_reload: 25s
             range: 95

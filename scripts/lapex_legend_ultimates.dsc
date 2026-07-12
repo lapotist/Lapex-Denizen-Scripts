@@ -85,18 +85,49 @@ lapex_ultimate_alter:
 
 lapex_ultimate_ash:
     type: task
+    debug: false
     script:
     - define origin <player.location>
     - define eye <player.eye_location>
-    - define raw_destination <[eye].ray_trace[range=60;entities=living;ignore=<player>;raysize=0.25;default=air]>
-    - define destination <proc[lapex_legend_safe_destination].context[<[raw_destination]>|<[origin]>]>
-    - define travelers <proc[lapex_legend_allies_near].context[<[origin]>|4|<player>]>
-    - playeffect effect:portal at:<[origin].above[1].points_between[<[destination]>].distance[2]> offset:0.08 quantity:2
+    - define raw_destination <[eye].ray_trace[range=100;default=air]>
+    - define destination <proc[lapex_legend_safe_destination].context[<[raw_destination]>|null]||null>
+    - if <[destination]> == null || <[origin].distance[<[destination]>]> < 6:
+        - flag player lapex.cooldown.ultimate:!
+        - actionbar "<red>NO SAFE PHASE BREACH EXIT"
+        - stop
+    - define entrance_tag lapex_ash_entrance_<util.random_uuid>
+    - ~run lapex_native_spawn_armor_stand def.location:<[origin]> def.tag:<[entrance_tag]> def.arms:false def.small:false def.marker:true
+    - define entrance <server.flag[lapex.native_spawn_result.<[entrance_tag]>]||null>
+    - flag server lapex.native_spawn_result.<[entrance_tag]>:!
+    - define exit_tag lapex_ash_exit_<util.random_uuid>
+    - ~run lapex_native_spawn_armor_stand def.location:<[destination]> def.tag:<[exit_tag]> def.arms:false def.small:false def.marker:true
+    - define exit <server.flag[lapex.native_spawn_result.<[exit_tag]>]||null>
+    - flag server lapex.native_spawn_result.<[exit_tag]>:!
+    - if <[entrance]> == null || <[exit]> == null:
+        - if <[entrance]> != null:
+            - remove <[entrance]>
+        - if <[exit]> != null:
+            - remove <[exit]>
+        - flag player lapex.cooldown.ultimate:!
+        - actionbar "<red>PHASE BREACH DEPLOY FAILED"
+        - stop
+    - foreach <list[<[entrance]>|<[exit]>]> as:portal:
+        - adjust <[portal]> gravity:false
+        - adjust <[portal]> silent:true
+        - adjust <[portal]> visible:false
+        - adjust <[portal]> base_plate:false
+        - adjust <[portal]> collidable:false
+        - equip <[portal]> head:<item[lapex_model_ash_portal]>
+    - flag <[entrance]> lapex.deployable_invulnerable
+    - flag <[entrance]> lapex.deployable_state:active
+    - flag <[entrance]> lapex.ash_destination:<[destination]>
+    - flag <[entrance]> lapex.ash_portal_active expire:15s
+    - ~run lapex_deployable_register def.owner:<player> def.entity:<[entrance]> def.kind:ash_portal def.health:1 def.max_count:1 "def.label:<light_purple>PHASE BREACH"
+    - run lapex_deployable_attach_extra def.owner:<player> def.primary:<[entrance]> def.extra:<[exit]>
+    - define session <[entrance].flag[lapex.deployable_session]>
+    - flag player lapex.ash_transit.<[session]> expire:16s
     - playsound <player> sound:entity.enderman.teleport pitch:0.55 volume:1
-    - wait 6t
-    - foreach <[travelers]> as:target:
-        - teleport <[target]> <[destination]>
-        - cast resistance duration:1s amplifier:4 <[target]>
+    - run lapex_ash_transit def.target:<player> def.destination:<[destination]> def.session:<[session]>
 
 lapex_ultimate_axle:
     type: task
@@ -186,7 +217,7 @@ lapex_ultimate_caustic:
         - if !<player.is_online>:
             - stop
         - playeffect effect:cloud at:<[gas]> offset:6 quantity:60
-        - run lapex_legend_damage_sphere def.location:<[gas]> def.radius:7 def.damage:6 def.effect:slow def.pylon_blockable:true
+        - run lapex_caustic_gas_pulse def.location:<[gas]> def.radius:7 def.damage:6 def.owner:<player>
         - wait 1s
 
 lapex_ultimate_conduit:
@@ -216,11 +247,15 @@ lapex_ultimate_crypto:
     - define center <[drone].location>
     - playsound <[center]> sound:entity.lightning_bolt.thunder pitch:1.8 volume:0.8
     - playeffect effect:electric_spark at:<[center]> offset:15 quantity:160
-    - foreach <[center].find_entities[player].within[30]> as:target:
-        - if !<proc[lapex_legend_is_ally].context[<player>|<[target]>]> && !<[target].has_flag[lapex.phased]>:
-            - define shields <[target].absorption_health||0>
-            - adjust <[target]> absorption_health:<[shields].sub[<[shields].min[10]>]>
-            - cast slowness duration:4s amplifier:2 <[target]>
+    - define affected <list>
+    - foreach <[center].find_entities[living].within[30]> as:target:
+        - define combat_player <proc[lapex_legend_combat_player].context[<[target]>]>
+        - if <[combat_player]> != null && !<[affected].contains[<[combat_player]>]> && !<proc[lapex_legend_is_ally].context[<player>|<[target]>]> && !<[combat_player].has_flag[lapex.phased]>:
+            - define affected <[affected].include[<[combat_player]>]>
+            - define shields <[combat_player].absorption_health||0>
+            - adjust <[combat_player]> absorption_health:<[shields].sub[<[shields].min[10]>]>
+            - cast slowness duration:4s amplifier:2 <[combat_player]>
+    - ~run lapex_destroy_indexed_deployables def.location:<[center]> def.radius:30 def.kinds:<list[gibraltar_dome|lifeline_doc]> def.source:<player> def.enemies_only:true
     - run lapex_legend_scan def.location:<[center]> def.radius:30 def.duration:8s
 
 lapex_ultimate_fuse:
@@ -257,35 +292,62 @@ lapex_ultimate_gibraltar:
 
 lapex_ultimate_horizon:
     type: task
+    debug: false
     script:
-    - define center <player.eye_location.ray_trace[range=45;entities=living;ignore=<player>;raysize=0.3;default=air]>
-    - playsound <[center]> sound:block.end_portal.spawn pitch:1.6 volume:0.75
-    - repeat 24:
-        - if !<player.is_online>:
-            - stop
-        - playeffect effect:reverse_portal at:<[center]> offset:2 quantity:24
-        - foreach <[center].find_entities[player].within[10]> as:target:
-            - if !<proc[lapex_legend_is_ally].context[<player>|<[target]>]> && !<[target].has_flag[lapex.phased]>:
-                - push <[target]> origin:<[target].location> destination:<[center]> speed:0.75 duration:5t no_damage
-                - cast slowness duration:8t amplifier:2 <[target]>
-        - wait 5t
-    - playeffect effect:explosion at:<[center]> offset:1 quantity:3
-    - run lapex_legend_damage_sphere def.location:<[center]> def.radius:7 def.damage:25 def.effect:slow def.pylon_blockable:true
+    - define raw <player.eye_location.ray_trace[range=45;default=air]>
+    - define center <proc[lapex_legend_safe_destination].context[<[raw]>|null]||null>
+    - if <[center]> == null:
+        - flag player lapex.cooldown.ultimate:!
+        - actionbar "<red>NO SAFE N.E.W.T. LOCATION"
+        - stop
+    - define spawn_tag lapex_horizon_<util.random_uuid>
+    - ~run lapex_native_spawn_armor_stand def.location:<[center]> def.tag:<[spawn_tag]> def.arms:false
+    - define device <server.flag[lapex.native_spawn_result.<[spawn_tag]>]||null>
+    - flag server lapex.native_spawn_result.<[spawn_tag]>:!
+    - if <[device]> == null:
+        - flag player lapex.cooldown.ultimate:!
+        - actionbar "<red>N.E.W.T. DEPLOY FAILED"
+        - stop
+    - adjust <[device]> gravity:false
+    - adjust <[device]> silent:true
+    - adjust <[device]> visible:false
+    - adjust <[device]> base_plate:false
+    - adjust <[device]> arms:false
+    - adjust <[device]> collidable:false
+    - equip <[device]> head:<item[lapex_model_horizon_newt]>
+    - flag <[device]> lapex.horizon_newt_active expire:6s
+    - run lapex_deployable_register def.owner:<player> def.entity:<[device]> def.kind:horizon_newt def.health:225 def.max_count:1 "def.label:<light_purple>N.E.W.T."
+    - playsound <[device]> sound:block.end_portal.spawn pitch:1.6 volume:0.75
 
 lapex_ultimate_lifeline:
     type: task
+    debug: false
     script:
-    - define halo <player.location.above[2]>
+    - define raw <player.eye_location.ray_trace[range=25;default=air]>
+    - define halo <proc[lapex_legend_safe_destination].context[<[raw]>|null]||null>
+    - if <[halo]> == null:
+        - flag player lapex.cooldown.ultimate:!
+        - actionbar "<red>NO SAFE HALO LOCATION"
+        - stop
+    - define spawn_tag lapex_halo_<util.random_uuid>
+    - ~run lapex_native_spawn_armor_stand def.location:<[halo]> def.tag:<[spawn_tag]> def.arms:false def.small:false def.marker:true
+    - define device <server.flag[lapex.native_spawn_result.<[spawn_tag]>]||null>
+    - flag server lapex.native_spawn_result.<[spawn_tag]>:!
+    - if <[device]> == null:
+        - flag player lapex.cooldown.ultimate:!
+        - actionbar "<red>HALO DEPLOY FAILED"
+        - stop
+    - adjust <[device]> gravity:false
+    - adjust <[device]> silent:true
+    - adjust <[device]> visible:false
+    - adjust <[device]> base_plate:false
+    - adjust <[device]> collidable:false
+    - equip <[device]> head:<item[lapex_model_lifeline_halo]>
+    - flag <[device]> lapex.deployable_invulnerable
+    - flag <[device]> lapex.deployable_state:active
+    - flag <[device]> lapex.lifeline_halo_active expire:25s
+    - run lapex_deployable_register def.owner:<player> def.entity:<[device]> def.kind:lifeline_halo def.health:1 def.max_count:1 "def.label:<aqua>D.O.C. HALO"
     - playsound <[halo]> sound:block.beacon.activate pitch:1.2 volume:1
-    - repeat 25:
-        - if !<player.is_online>:
-            - stop
-        - playeffect effect:end_rod at:<[halo]> offset:5 quantity:30
-        - foreach <proc[lapex_legend_allies_near].context[<[halo]>|8|<player>]> as:target:
-            - flag <[target]> lapex.legend_protected expire:1.3s
-            - cast regeneration duration:2s amplifier:0 <[target]>
-            - cast slow_falling duration:2s amplifier:0 <[target]>
-        - wait 1s
 
 lapex_ultimate_loba:
     type: task
@@ -305,13 +367,16 @@ lapex_ultimate_mad_maggie:
     - define origin <player.location.above[1]>
     - define destination <player.eye_location.ray_trace[range=55;entities=living;ignore=<player>;raysize=0.5;default=air]>
     - define path <[origin].points_between[<[destination]>].distance[2]>
+    - define previous <[origin]>
     - playsound <player> sound:entity.firework_rocket.launch pitch:0.7 volume:0.9
     - foreach <[path]> as:node:
+        - ~run lapex_destroy_dome_crossed def.start:<[previous]> def.end:<[node]>
         - playeffect effect:explosion at:<[node]> offset:0.4 quantity:2
         - playeffect effect:small_flame at:<[node]> offset:1 quantity:6
         - run lapex_legend_damage_sphere def.location:<[node]> def.radius:2.5 def.damage:8 def.effect:slow def.pylon_blockable:true
         - foreach <proc[lapex_legend_allies_near].context[<[node]>|2.5|<player>]> as:target:
             - cast speed duration:4s amplifier:2 <[target]>
+        - define previous <[node]>
         - wait 2t
 
 lapex_ultimate_mirage:
@@ -338,7 +403,6 @@ lapex_ultimate_newcastle:
     - define right <[destination].with_yaw[<player.location.yaw.sub[90]>].forward[7]>
     - define wall <[left].points_between[<[right]>].distance[1.5]>
     - playeffect effect:electric_spark at:<[wall]> offset:0.5 quantity:8
-    - run lapex_legend_damage_sphere def.location:<[destination]> def.radius:6 def.damage:20 def.effect:slow
     - repeat 30:
         - if !<player.is_online>:
             - stop
@@ -350,20 +414,32 @@ lapex_ultimate_newcastle:
 
 lapex_ultimate_octane:
     type: task
+    debug: false
     script:
-    - define pad <player.location.forward[2]>
-    - playsound <[pad]> sound:block.piston.extend pitch:1.6 volume:0.8
-    - repeat 45:
-        - if !<player.is_online>:
-            - stop
-        - playeffect effect:happy_villager at:<[pad]> offset:0.8 quantity:8
-        - foreach <[pad].find_entities[living].within[2]> as:rider:
-            - if !<[rider].has_flag[lapex.launch_pad]>:
-                - flag <[rider]> lapex.launch_pad expire:3s
-                - define landing <[rider].location.forward[18].above[7]>
-                - push <[rider]> origin:<[pad]> destination:<[landing]> speed:1.8 duration:2s no_damage
-                - cast slow_falling duration:5s amplifier:0 <[rider]>
-        - wait 1s
+    - define desired <player.location.forward[2]>
+    - define pad <proc[lapex_legend_safe_destination].context[<[desired]>|null]||null>
+    - if <[pad]> == null:
+        - run lapex_legend_refund_charge def.target:<player> def.id:octane def.slot:ultimate
+        - actionbar "<red>NO SAFE LAUNCH PAD LOCATION"
+        - stop
+    - define spawn_tag lapex_octane_<util.random_uuid>
+    - ~run lapex_native_spawn_armor_stand def.location:<[pad]> def.tag:<[spawn_tag]> def.arms:false def.small:true
+    - define device <server.flag[lapex.native_spawn_result.<[spawn_tag]>]||null>
+    - flag server lapex.native_spawn_result.<[spawn_tag]>:!
+    - if <[device]> == null:
+        - run lapex_legend_refund_charge def.target:<player> def.id:octane def.slot:ultimate
+        - actionbar "<red>LAUNCH PAD DEPLOY FAILED"
+        - stop
+    - adjust <[device]> gravity:false
+    - adjust <[device]> silent:true
+    - adjust <[device]> visible:false
+    - adjust <[device]> base_plate:false
+    - adjust <[device]> collidable:false
+    - teleport <[device]> <[pad].with_yaw[<player.location.yaw>]>
+    - equip <[device]> head:<item[lapex_model_octane_pad]>
+    - flag <[device]> lapex.deployable_state:active
+    - run lapex_deployable_register def.owner:<player> def.entity:<[device]> def.kind:octane_pad def.health:200 def.max_count:4 "def.label:<green>LAUNCH PAD"
+    - playsound <[device]> sound:block.piston.extend pitch:1.6 volume:0.8
 
 lapex_ultimate_pathfinder:
     type: task
@@ -388,6 +464,10 @@ lapex_ultimate_rampart:
     - if <player.item_in_hand.flag[lapex.id]||null> == sheila:
         - inventory flag slot:hand lapex.ammo:<script[lapex_weapon_data].data_key[weapons.sheila.mag]>
         - actionbar "<gold>Sheila reloaded"
+    - else if <proc[lapex_player_has_weapon].context[<player>|sheila]>:
+        - flag player lapex.cooldown.ultimate:!
+        - actionbar "<gray>Sheila is already in your inventory"
+        - stop
     - else:
         - give <item[apex_sheila]>
         - narrate "<gold>Mobile Minigun Sheila deployed."
@@ -446,8 +526,13 @@ lapex_ultimate_vantage:
     type: task
     script:
     - if <player.item_in_hand.flag[lapex.id]||null> == a13_sentry:
-        - inventory flag slot:hand lapex.ammo:<script[lapex_weapon_data].data_key[weapons.a13_sentry.mag]>
-        - actionbar "<red>A-13 round regenerated"
+        - flag player lapex.cooldown.ultimate:!
+        - actionbar "<gray>A-13 rounds regenerate automatically"
+        - stop
+    - else if <proc[lapex_player_has_weapon].context[<player>|a13_sentry]>:
+        - flag player lapex.cooldown.ultimate:!
+        - actionbar "<gray>A-13 is already in your inventory"
+        - stop
     - else:
         - give <item[apex_a13_sentry]>
         - narrate "<red>A-13 Sentry deployed. <gray>Hits mark targets for amplified follow-up damage."
@@ -470,25 +555,49 @@ lapex_ultimate_wattson:
 
 lapex_ultimate_wraith:
     type: task
+    debug: false
     script:
     - define origin <player.location>
     - define eye <player.eye_location>
-    - define raw_destination <[eye].ray_trace[range=60;entities=living;ignore=<player>;raysize=0.2;default=air]>
+    - define raw_destination <[eye].ray_trace[range=60;default=air]>
     - define destination <proc[lapex_legend_safe_destination].context[<[raw_destination]>|<[origin]>]>
+    - if <[origin].distance[<[destination]>]> < 6:
+        - flag player lapex.cooldown.ultimate:!
+        - actionbar "<red>PORTAL EXIT IS TOO CLOSE"
+        - stop
+    - define portal_id <util.random_uuid>
+    - define transiting <list[<player>]>
     - playeffect effect:portal at:<[origin].above[1].points_between[<[destination]>].distance[2]> offset:0.08 quantity:2
+    - flag player lapex.rift_transit.<[portal_id]> expire:50s
     - teleport <player> <[destination]>
     - cast resistance duration:2s amplifier:4 <player>
     - playsound <player> sound:entity.enderman.teleport pitch:0.75 volume:0.9
-    - repeat 30:
+    - repeat 450:
         - if !<player.is_online>:
             - stop
         - playeffect effect:portal at:<list[<[origin].above[1]>|<[destination].above[1]>]> offset:0.6 quantity:12
-        - foreach <[origin].find_entities[player].within[2]> as:traveler:
-            - if !<[traveler].has_flag[lapex.rift_transit]>:
-                - flag <[traveler]> lapex.rift_transit expire:2s
+        - foreach <[origin].find_entities[player].within[2.2]> as:traveler:
+            - if !<[traveler].has_flag[lapex.rift_transit.<[portal_id]>]>:
+                - flag <[traveler]> lapex.rift_transit.<[portal_id]> expire:50s
+                - define transiting <[transiting].include[<[traveler]>].deduplicate>
                 - teleport <[traveler]> <[destination]>
-        - foreach <[destination].find_entities[player].within[2]> as:traveler:
-            - if !<[traveler].has_flag[lapex.rift_transit]>:
-                - flag <[traveler]> lapex.rift_transit expire:2s
+        - foreach <[destination].find_entities[player].within[2.2]> as:traveler:
+            - if !<[traveler].has_flag[lapex.rift_transit.<[portal_id]>]>:
+                - flag <[traveler]> lapex.rift_transit.<[portal_id]> expire:50s
+                - define transiting <[transiting].include[<[traveler]>].deduplicate>
                 - teleport <[traveler]> <[origin]>
-        - wait 1s
+        # A traveler must leave both endpoint hitboxes before this portal can
+        # accept them again. A fixed timer caused endless destination bounce.
+        - foreach <[transiting]> as:traveler:
+            - if !<[traveler].is_online||false>:
+                - define transiting <[transiting].exclude[<[traveler]>]>
+            - else if <[traveler].world> != <[origin].world>:
+                - flag <[traveler]> lapex.rift_transit.<[portal_id]>:!
+                - define transiting <[transiting].exclude[<[traveler]>]>
+            - else if <[traveler].location.distance[<[origin]>]> > 2.8 && <[traveler].location.distance[<[destination]>]> > 2.8:
+                - flag <[traveler]> lapex.rift_transit.<[portal_id]>:!
+                - define transiting <[transiting].exclude[<[traveler]>]>
+        - wait 2t
+    - foreach <[transiting]> as:traveler:
+        - if <[traveler].is_online||false>:
+            - flag <[traveler]> lapex.rift_transit.<[portal_id]>:!

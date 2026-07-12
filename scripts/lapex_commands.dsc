@@ -94,6 +94,10 @@ lapex_command:
                 - narrate "<red>This action requires a player command source."
                 - stop
             - flag player lapex.cooldown:!
+            - flag player lapex.charges:!
+            - flag player lapex.charge_due:!
+            - flag player lapex.charge_groups:!
+            - flag player lapex.charge_transaction:!
             - narrate "<green>Legend cooldowns reset."
         - case validate:
             - run lapex_validate
@@ -134,8 +138,12 @@ lapex_validate:
         - if <[built_item].flag[lapex.id]||null> != <[id]>:
             - narrate "<red>[Lapex] Item ID mismatch: <[item_name]>"
             - define failures <[failures].add[1]>
-        - if <[built_item].flag[lapex.ammo]||0> != <[weapon].get[mag]>:
+        - define initial_ammo <[weapon].get[initial_ammo]||<[weapon].get[mag]>>
+        - if <[built_item].flag[lapex.ammo]||0> != <[initial_ammo]>:
             - narrate "<red>[Lapex] Initial magazine mismatch: <[id]>"
+            - define failures <[failures].add[1]>
+        - if <[initial_ammo]> < 0 || <[initial_ammo]> > <[weapon].get[mag]>:
+            - narrate "<red>[Lapex] Invalid initial ammo: <[id]>"
             - define failures <[failures].add[1]>
         # Force required values through the object conversions used by runtime.
         - define checked_damage <[weapon].get[damage].mul[<script[lapex_weapon_data].data_key[damage_scale]>]>
@@ -174,9 +182,25 @@ lapex_validate:
         - if <[checked_tactical]> <= 0 || <[checked_ultimate]> <= 0:
             - narrate "<red>[Lapex] Invalid cooldown on <[id]>"
             - define failures <[failures].add[1]>
+        - foreach <list[tactical|ultimate]> as:slot:
+            - define max_charges <[kit].get[<[slot]>_charges]||1>
+            - if <[max_charges]> > 1:
+                - define recharge <[kit].get[<[slot]>_recharge]||null>
+                - if <[recharge]> == null || <duration[<[recharge]>].in_ticks> <= 0:
+                    - narrate "<red>[Lapex] Invalid multi-charge recharge on <[id]> <[slot]>"
+                    - define failures <[failures].add[1]>
     - if <[legend_registry].size> != 28 || <[legend_ids].size> != 28:
         - narrate "<red>[Lapex] Legend registry/list size mismatch: <[legend_registry].size>/<[legend_ids].size>"
         - define failures <[failures].add[1]>
+    - foreach <list[lapex_model_caustic_trap|lapex_model_horizon_newt|lapex_model_octane_pad|lapex_model_axle_gate|lapex_model_ash_portal|lapex_model_gibraltar_dome|lapex_model_lifeline_doc|lapex_model_lifeline_halo]> as:visual_item:
+        - define built_visual <item[<[visual_item]>]||null>
+        - if <[built_visual]> == null || <[built_visual].material.name> != carrot_on_a_stick || <[built_visual].flag[lapex.id]||null> != null:
+            - narrate "<red>[Lapex] Invalid deployable visual item: <[visual_item]>"
+            - define failures <[failures].add[1]>
+    - foreach <list[lapex_native_spawn_armor_stand|lapex_native_spawn_allay|lapex_crypto_reconcile_proxy|lapex_crypto_body_flush|lapex_legend_refund_charge|lapex_legend_charge_tick|lapex_charge_smoke|lapex_deployable_events|lapex_deployable_register|lapex_deployable_attach_extra|lapex_deployable_reconcile_extra|lapex_deployable_cleanup|lapex_deployable_cleanup_after_hit|lapex_caustic_trap_loop|lapex_caustic_trigger|lapex_caustic_gas_pulse|lapex_horizon_newt_loop|lapex_horizon_newt_pull|lapex_mobility_cleanup_player|lapex_ash_portal_loop|lapex_ash_transit|lapex_octane_pad_loop|lapex_octane_launch|lapex_octane_double_jump|lapex_axle_gate_loop|lapex_slide_start|lapex_slide_loop|lapex_sphere_trace_intersection|lapex_dome_trace_hit|lapex_dome_trace_intersection|lapex_dome_geometry_smoke|lapex_gibraltar_dome_loop|lapex_lifeline_doc_loop|lapex_lifeline_doc_assign|lapex_lifeline_halo_loop|lapex_deployable_smoke]> as:required_script:
+        - if <script[<[required_script]>]||null> == null:
+            - narrate "<red>[Lapex] Missing deployable runtime: <[required_script]>"
+            - define failures <[failures].add[1]>
     - if <[failures]> == 0:
         - narrate "<green>Lapex validation passed: <[ids].size> guns and <[legend_ids].size> legends resolved."
     - else:
