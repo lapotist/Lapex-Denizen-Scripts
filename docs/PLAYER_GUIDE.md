@@ -8,9 +8,9 @@ steps and simple words. You do not need to know how the code works.
 Use a Minecraft 26.1.2 client. Ask the server owner for the Lapex resource-pack
 ZIP. Turn the pack on before joining.
 
-The pack changes each gun from a carrot on a stick into a low-poly weapon. The
-game still works when the pack is off, but every gun will look like a carrot on
-a stick.
+The pack changes each gun into a low-poly weapon. It also shows models for the
+first eight physical legend devices. The game still works when the pack is off,
+but guns and devices use their vanilla carrot-on-a-stick appearance.
 
 ## Your First Gun
 
@@ -63,9 +63,9 @@ stop testing and report it as a bug.
 Hold right-click to zoom in and make the shot spread smaller. Let go to return
 to the normal view.
 
-Sneaking also uses the tighter accuracy value. Right-click is the normal ADS
-control. Sneak is kept as a Minecraft-friendly backup and as a modifier for
-some gun powers.
+Sneaking by itself does not improve gun accuracy. It is only a modifier for
+some legend and special-gun powers. This keeps ADS predictable: right-click is
+the one aiming control.
 
 ## Reloading
 
@@ -110,6 +110,10 @@ Check power cooldowns:
 /legend status
 ```
 
+Some current powers store two charges. The status command shows how many are
+ready. Each spent charge gets its own timer, so one can return while another is
+still charging.
+
 You can always use these command backups:
 
 ```text
@@ -143,6 +147,43 @@ The server owner may also let players manage their own team with:
 
 With no team name, only the caster counts as their own ally.
 
+## Physical Powers
+
+Some powers now place a real object instead of a hidden particle point.
+
+- **Caustic trap:** arms, watches for enemies, can be shot, and shows its health.
+- **Horizon N.E.W.T.:** can be shot while it pulls nearby enemies.
+- **Ash Phase Breach:** Ash travels first. Other players enter the purple start
+  portal only when they choose to. The exit never sends them backward.
+- **Octane pad:** anyone can launch. Sneak once while airborne to turn your
+  double jump toward the camera. Octane can store two pad charges.
+- **Axle gate:** anyone entering gets a steerable slide. Sneak once to cancel it.
+  Axle may keep two 100 HP gates.
+- **Gibraltar Dome:** shots stop when they cross the blue shell in either
+  direction. Players and shots already staying inside may move normally.
+- **Lifeline D.O.C.:** heals nearby allies. Press tactical again to make D.O.C.
+  follow the ally you aim at; aim at nobody to make it follow Lifeline.
+- **Lifeline Halo:** friends see a blue station and enemies see a warning color.
+  It does not make anyone invincible. It does not speed healing items yet.
+
+The name above a shootable object shows its game health. Death, leaving,
+changing world, changing legend, and script reload all clean up owned objects.
+
+## Octane Stim
+
+Normal Stim costs Lapex-tuned health and gives six seconds of speed. Use tactical
+again while Stim is active to trigger Stim Surge. Surge costs no health, lasts
+six seconds, and turns on Swift Mend even while Octane takes damage. Surge then
+needs 20 seconds before it can be used again.
+
+## Special Legend Guns
+
+- Whistler has two rounds. Its heat state lasts 15 seconds and can cause 50
+  overheat damage.
+- A-13 starts with two rounds and grows one carried round every 40 seconds up to
+  six. Tracking enemy teams while ADS also builds round progress.
+- A-13, Whistler, and Sheila cannot be duplicated by repeating their powers.
+
 ## Crypto Drone
 
 Crypto has the most unusual control flow in Lapex.
@@ -150,10 +191,10 @@ Crypto has the most unusual control flow in Lapex.
 1. Choose Crypto with `/legend crypto`.
 2. Hold a Lapex gun.
 3. Press Q, or run `/legend tactical`.
-4. Your camera enters spectator flight.
+4. Your camera can fly freely while your character stays behind.
 5. A glowing allay marks the drone for other players.
-6. A player-shaped Paper mannequin stays where you started. An armor stand is
-   used if the server cannot create the mannequin.
+6. A player-shaped body copy stays where you started. A simple stand is used
+   if the server cannot create that body copy.
 7. Fly up to 200 blocks from that starting point.
 8. Press Q again, or run `/legend tactical`, to recall the drone.
 
@@ -162,7 +203,7 @@ can shoot the glowing drone. When it breaks, Crypto returns and the 30-second
 drone cooldown starts.
 
 Enemies can also shoot the body left behind. That hit returns Crypto to the body
-and deals the hit to the real player. Allies cannot use the proxy to hurt their
+and deals the hit to the real player. Allies cannot use the body copy to hurt their
 teammate.
 
 While the drone is active, use the ultimate to start Drone EMP:
@@ -202,7 +243,7 @@ on the 26.1.2 Lapex pack and reconnect.
 ### Left-click does not shoot
 
 Make sure the item is a real Lapex gun. Try `/lapex give r301` as an operator.
-Wait for a reload or action lock to finish. Then check the server console.
+Wait for the current reload or gun action to finish. Then check the server console.
 
 ### Right-click does not stay zoomed
 

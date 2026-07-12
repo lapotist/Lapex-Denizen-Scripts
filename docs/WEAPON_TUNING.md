@@ -124,8 +124,29 @@ fourth round. This keeps the particle cost bounded. Every tracer layer uses a
 256-block visibility radius so the far end of a long shot is not cut off by the
 default particle distance.
 
+Before a tracer or hit is accepted, the engine asks the shared Gibraltar Dome
+geometry for the first shell crossing. A blocked tracer ends at that exact
+point. The shot cannot damage, mark, or create a Whistler mine behind it.
+
 Test tracers from the side as another player. A shooter-only test cannot prove
 that other players see the correct path.
+
+## Special Weapon State
+
+- Sentinel amp and Rampage rev flags live on the physical gun item. Swapping to
+  another copy does not transfer the charge.
+- Rampage reads its rev state every automatic-fire tick, so RPM returns to base
+  as soon as the item flag expires.
+- Whistler carries two rounds, refreshes heat to 15 seconds, and uses 50 Apex
+  overheat damage. Independent tactical recharge is still a known gap.
+- A-13 manual reload is blocked. A carried item starts at two rounds and gains
+  one every 40 seconds until six; Vantage team tracking adds fractional progress.
+- Charge Rifle remains delayed hitscan with range scaling. Projectile travel,
+  drop, and current select-fire behavior are not simulated.
+
+EA does not publish complete recoil sequences. `recoil_pitch` and `recoil_yaw`
+therefore remain Lapex approximations even when current damage and multiplier
+changes have an official source.
 
 ## Safe Balance Change
 

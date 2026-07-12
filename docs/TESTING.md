@@ -23,7 +23,8 @@ find resource-pack -type f \( -name '*.json' -o -name 'pack.mcmeta' \) -print0 |
 git diff --check
 ```
 
-Confirm there are 32 model files and 32 texture files:
+Confirm there are 40 model files and 40 texture files: 32 weapons and eight
+legend devices.
 
 ```text
 find resource-pack/assets/lapex/models/item -name '*.json' | wc -l
@@ -41,13 +42,22 @@ From the Paper console, run:
 ex reload scripts_now
 ex run lapex_validate
 ex run lapex_map_validate
+ex run lapex_deployable_smoke def.owner:<server.offline_players.first> def.location:<world[world].spawn_location.above[4]>
+ex run lapex_dome_geometry_smoke def.center:<world[world].spawn_location.above[2]>
+ex run lapex_charge_smoke def.target:<server.offline_players.first>
 ```
+
+The deployable and charge smokes need one known player profile. On a new server,
+join once or replace `<server.offline_players.first>` with a known PlayerTag.
 
 Expected lines:
 
 ```text
 Lapex validation passed: 32 guns and 28 legends resolved.
 Lapex map validation passed: 17 POIs, 640x640 border, and all build tasks resolved.
+Lapex deployable smoke passed: native proxies, extras, register, replace, and cleanup.
+Lapex Dome geometry smoke passed: upper shell, both directions, internal shot, and lower-half rejection.
+Lapex charge smoke passed: due ordering, charge cap, and test-flag rollback.
 ```
 
 The reload is not successful if the console also shows an invalid event, tag,
@@ -94,6 +104,8 @@ become `0, 0, 0`, and the script must not add velocity.
 - [ ] ADS FOV does not clip the model badly.
 - [ ] Muzzle particles start near the visible muzzle.
 - [ ] Bright and dark tracer colors remain readable.
+- [ ] All eight device models align with their armor-stand hitboxes or emitter points.
+- [ ] Flat pads do not look upright; gates and portals face the placement yaw.
 
 JSON validation cannot replace this test. A model can be valid and still look
 wrong in the client.
@@ -104,6 +116,7 @@ Use two players on different Lapex teams.
 
 - [ ] Tactical leaves a player-shaped body at the exact start point.
 - [ ] The real player enters spectator flight.
+- [ ] Left-clicking an entity does not attach the spectator camera to it.
 - [ ] A glowing drone marker follows the camera.
 - [ ] Action bar shows drone HP, range, and recall help.
 - [ ] The drone can travel close to 200 blocks without losing the body chunk.
@@ -113,14 +126,52 @@ Use two players on different Lapex teams.
 - [ ] Destroying the drone starts a 30-second tactical cooldown.
 - [ ] Manual recall uses only the short recall cooldown.
 - [ ] Enemy gunfire at the body hurts the real player and returns them.
+- [ ] One shotgun hit forwards every pellet accumulated in that server tick.
 - [ ] Ally gunfire cannot hurt the body or drone.
 - [ ] EMP starts at the drone, not the body.
 - [ ] EMP removes no more than 50 Apex shield HP and does not remove health.
 - [ ] Q recall works when the client sends it.
 - [ ] `/legend tactical` always recalls as a fallback.
 - [ ] Quit, death, legend switch, and script reload remove both proxy entities.
+- [ ] Quit and reconnect returns Crypto to the saved body origin, not the remote camera.
+- [ ] A heal/scan/Dome near the body affects the body owner, not the spectator camera.
+- [ ] N.E.W.T. can move the body and recall returns Crypto to its new location.
 - [ ] A stale proxy from an old session cannot hurt its owner.
 - [ ] Two Crypto players starting in one chunk do not release each other's chunk ticket.
+
+## Physical Device Checklist
+
+- [ ] Caustic can own six traps; the seventh replaces the oldest.
+- [ ] A trap cannot trigger before arming or run two gas loops.
+- [ ] Overlapping gas from one Caustic does not multiply each damage tick.
+- [ ] N.E.W.T. pulls several enemies at the same time without rotating cameras.
+- [ ] N.E.W.T. pulls a piloting Crypto's body, not the remote camera.
+- [ ] Ash enters automatically; every other player chooses at the origin only.
+- [ ] Ash transit preserves view direction and never permits a return through the exit.
+- [ ] A player in Ash transit cannot move, shoot, use an ability, or deal vanilla damage.
+- [ ] Octane pad launch leaves camera control; Sneak redirects one double jump.
+- [ ] Landing from either Octane-pad jump does not deal fall damage.
+- [ ] Axle and non-Axle riders get the correct steering; Sneak cancels Nitro.
+- [ ] Destroying a gate stops new riders but does not cancel an existing slide.
+- [ ] Dome blocks outside-in, inside-out, and outside-through-outside shots.
+- [ ] Two players whose shot stays inside the same Dome can still fight.
+- [ ] Tracers stop on the shell and Whistler does not leave a mine there.
+- [ ] Arrows and other vanilla projectiles stop on the shell.
+- [ ] D.O.C. heals allies only and follows the chosen ally or Crypto body.
+- [ ] Nox gas pauses enemy D.O.C.; enemy Crypto EMP destroys D.O.C. and Dome.
+- [ ] Halo colors friends and enemies differently and grants no fake protection.
+- [ ] Damageable model health, name, visual size, and hitbox agree.
+- [ ] Owner death, quit, world/legend/team change, reload, and restart leave no proxy.
+
+## Charge Checklist
+
+- [ ] Conduit and Pathfinder start with two tactical charges.
+- [ ] Octane starts with two ultimate charges.
+- [ ] Spending both charges starts two independent due times.
+- [ ] `/legend status` shows the current count.
+- [ ] An invalid Octane pad placement refunds exactly one charge.
+- [ ] Reload and reconnect restore every already-due charge once, not twice.
+- [ ] `/lapex resetcooldowns` restores the default full count.
 
 ## Legend Checklist
 

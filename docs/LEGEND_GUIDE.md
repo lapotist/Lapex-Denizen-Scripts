@@ -23,11 +23,11 @@ checklist in [Testing](TESTING.md).
 
 - **Apex idea:** carry a third Sling gun, overheat one enemy gun with Whistler,
   and give the squad fast reloads and unlimited ammo with Tempest.
-- **Lapex today:** the Sling uses the offhand, Whistler is a special Lapex gun,
-  and Tempest grants team ammo and reload help.
+- **Lapex today:** the Sling uses the offhand, Whistler is a two-round special
+  gun with heat and trap behavior, and Tempest grants team ammo and reload help.
 - **Status:** adapted.
-- **Still missing:** two tactical charges, one-weapon heat ownership, and a real
-  gold Sling upgrade.
+- **Still missing:** independently recharging tactical charges, one-weapon heat
+  ownership, and a real gold Sling upgrade.
 - [Official Ballistic page](https://www.ea.com/games/apex-legends/apex-legends/characters-hub/ballistic)
 
 ### Bangalore
@@ -90,22 +90,24 @@ checklist in [Testing](TESTING.md).
 
 - **Apex idea:** air dash, tether the first enemy hit by Arc Snare, and open a
   targeted one-way portal.
-- **Lapex today:** air dash works, but Arc Snare is a slow area and Phase Breach
-  directly moves nearby allies.
-- **Status:** adapted.
-- **Still missing:** first-target tether distance, a visible snare object, and a
-  portal players choose to enter.
+- **Lapex today:** air dash works, Arc Snare is still a slow area, and Phase
+  Breach is a visible 100-block one-way portal. Ash travels first; other players
+  choose whether to enter its origin.
+- **Status:** adapted ultimate with live verification pending; tactical remains analogue.
+- **Still missing:** first-target tether distance, a visible snare object, and
+  final multiplayer portal timing tests.
 - [Official Ash page](https://www.ea.com/games/apex-legends/apex-legends/characters-hub/ash)
 
 ### Axle
 
 - **Apex idea:** control fast slides, place a team-neutral Nitro Gate, and send a
   destructible drone that hunts and displaces an enemy.
-- **Lapex today:** sneak gives a forward push, the gate is a timed point, and the
-  ultimate directly strikes the nearest enemy.
-- **Status:** analogue.
-- **Still missing:** true slide steering, two 100 HP gates, a visible seeking
-  drone, reveal, counterplay, and velocity-based knockback.
+- **Lapex today:** sprinting Sneak starts a steerable Drift, two visible 100 HP
+  team-neutral gates grant a five-second steerable slide, and Sneak cancels it.
+  The ultimate still directly strikes the nearest enemy.
+- **Status:** adapted passive/tactical with live verification pending; ultimate remains analogue.
+- **Still missing:** a visible seeking Kickstart drone, reveal, destruction
+  counterplay, and velocity-based knockback.
 - [Official Axle page](https://www.ea.com/games/apex-legends/apex-legends/characters-hub/axle)
 
 ### Horizon
@@ -113,42 +115,46 @@ checklist in [Testing](TESTING.md).
 - **Apex idea:** control the air, place a gravity lift, and throw a black-hole
   device called N.E.W.T.
 - **Lapex today:** jumping gives slow fall and speed, the lift raises living
-  entities, and a particle point pulls enemies before an extra blast.
-- **Status:** adapted.
-- **Still missing:** real air steering, a visible damageable N.E.W.T., and
-  removal of the unsupported final health-damage blast.
+  entities, and one visible 225 HP N.E.W.T. pulls and slows enemies for six
+  seconds without an unsupported final damage blast.
+- **Status:** adapted, with final N.E.W.T. live verification pending.
+- **Still missing:** real air steering, a Gravity Lift model and exit boost, and
+  live model/hitbox alignment testing.
 - [Official Horizon page](https://www.ea.com/games/apex-legends/apex-legends/characters-hub/horizon)
 
 ### Octane
 
 - **Apex idea:** heal out of combat, spend health for Stim, press Stim again for
   Surge, and place a reusable double-jump pad.
-- **Lapex today:** healing works, Stim costs health and boosts movement, low
-  health can auto-trigger extra healing, and a timed point launches entities.
-- **Status:** adapted.
-- **Still missing:** second-input Surge, a visible persistent pad, launch-angle
-  control, and player-controlled double jump.
+- **Lapex today:** healing works, Stim costs tuned health, and a second tactical
+  input triggers a zero-cost six-second Surge with scaling Swift Mend. Octane
+  stores two pad charges; visible 200 HP pads launch anyone and Sneak redirects
+  one airborne double jump.
+- **Status:** adapted, with pad and Surge live verification pending.
+- **Still missing:** held-input Surge buffering, exact unpublished speed/cost
+  numbers, Daredevil extension, and final pad movement tuning.
 - [Official Octane page](https://www.ea.com/games/apex-legends/apex-legends/characters-hub/octane)
 
 ### Pathfinder
 
 - **Apex idea:** use scans to recharge and improve Zipline, store two grapples,
   and place a protected rideable zipline.
-- **Lapex today:** Minecraft beacons shorten the current ultimate cooldown, one
-  grapple pulls the player, and a timed particle line pushes riders.
+- **Lapex today:** Minecraft beacons shorten the current ultimate cooldown, two
+  independently recharging grapple charges pull the player, and a timed particle line
+  pushes riders.
 - **Status:** analogue.
-- **Still missing:** two charges, current scan math, a physical reusable
+- **Still missing:** current scan math, a physical reusable bidirectional
   zipline, rider control, and incoming-damage reduction.
 - [Official Pathfinder page](https://www.ea.com/games/apex-legends/apex-legends/characters-hub/pathfinder)
 
 ### Wraith
 
 - **Apex idea:** warn before danger, phase safely, and link two portals for 45 seconds.
-- **Lapex today:** warns after a threat flag is created, phase blocks Lapex
-  damage and grants protection, and two portal points work in both directions for 30 seconds.
-- **Status:** closer adaptation.
+- **Lapex today:** warns after a threat flag is created, phase blocks damage and
+  Lapex attacks, and two portal points work in both directions for 45 seconds.
+- **Status:** adapted, with portal live verification pending.
 - **Still missing:** pre-shot aim warning, broader vanilla interaction blocking,
-  and the current 45-second portal life.
+  and physical endpoint models.
 - [Official Wraith page](https://www.ea.com/games/apex-legends/apex-legends/characters-hub/wraith)
 
 ## Recon Legends
@@ -169,8 +175,10 @@ checklist in [Testing](TESTING.md).
 - **Apex idea:** pilot a 50 HP drone, share nearby detections, use remote map
   interactions, cloak while piloting, and EMP shields and traps.
 - **Lapex today:** spectator flight controls a visible 50 HP drone while a
-  damageable body stays behind. Scan and shield-only EMP work from the drone.
-- **Status:** closer adaptation.
+  session-bound damageable mannequin body stays behind. Body shotgun pellets
+  are collected before returning Crypto. Proxy-aware scan, support, and
+  shield-only EMP behavior use the body instead of the remote camera.
+- **Status:** adapted, with two-player drone verification pending.
 - **Still missing:** cloak, remote beacon/banner/respawn actions, trap
   destruction, and final live-client input and proxy-damage testing.
 - [Official Crypto page](https://www.ea.com/games/apex-legends/apex-legends/characters-hub/crypto)
@@ -179,12 +187,12 @@ checklist in [Testing](TESTING.md).
 
 - **Apex idea:** sense heartbeats while aiming, send a delayed wall-passing
   silence scan, and place a damageable movement-tracking Exhibit.
-- **Lapex today:** sneaking reports the nearest enemy distance, tactical damages
-  and scans one endpoint area, and an undamageable particle sphere scans everyone.
+- **Lapex today:** right-click ADS reports a nearby enemy distance, tactical
+  silences and scans one endpoint area without health damage, and an
+  undamageable particle sphere scans everyone.
 - **Status:** analogue.
-- **Still missing:** true ADS cone cues, delayed tunnel geometry, removal of
-  unsupported tactical health damage, a damageable Exhibit, movement/fire rules,
-  and Seer's current double jump.
+- **Still missing:** true directional ADS cone cues, delayed tunnel geometry, a
+  damageable Exhibit, movement/fire filters, and Seer's current double jump.
 - [Official Seer page](https://www.ea.com/games/apex-legends/apex-legends/characters-hub/seer)
 
 ### Sparrow
@@ -213,11 +221,12 @@ checklist in [Testing](TESTING.md).
 
 - **Apex idea:** read teams and bullet drop, position Echo, launch and double
   jump to Echo, and mark enemies with a custom sniper.
-- **Lapex today:** sneaking shows one target's health and distance, tactical
-  pushes toward the aimed point, and A-13 marks and amplifies follow-up damage.
+- **Lapex today:** right-click ADS shows one target's health and distance and
+  tracking a team adds 70 percent of A-13 round progress. Tactical pushes toward
+  the aimed point; A-13 regenerates rounds, marks, and amplifies follow-up damage.
 - **Status:** adapted.
 - **Still missing:** shield/team/drop data, persistent Echo position and recall,
-  line-of-sight launch choices, double jump, targeting laser, and polished bullet regeneration.
+  line-of-sight launch choices, double jump, targeting laser, and canted sight.
 - [Official Vantage page](https://www.ea.com/games/apex-legends/apex-legends/characters-hub/vantage)
 
 ## Controller Legends
@@ -226,10 +235,10 @@ checklist in [Testing](TESTING.md).
 
 - **Apex idea:** own reinforced doors, store persistent spike patches, and raise
   a wall that slows and blocks sight.
-- **Lapex today:** sneak-use closes a door and gives Catalyst short damage
-  reduction, while spikes and veil are timed particle zones.
+- **Lapex today:** sneak-use closes a door and gives it three reinforced break
+  attempts for 30 seconds, while spikes and veil are timed particle zones.
 - **Status:** analogue.
-- **Still missing:** owned door health and rebuilding, charge and object limits,
+- **Still missing:** exact door health/rebuilding, charge and object limits,
   physical spikes, and a wall that truly blocks vision.
 - [Official Catalyst page](https://www.ea.com/games/apex-legends/apex-legends/characters-hub/catalyst)
 
@@ -237,11 +246,12 @@ checklist in [Testing](TESTING.md).
 
 - **Apex idea:** earn current Field Research progress, store up to six shootable
   gas traps, and throw a large gas grenade.
-- **Lapex today:** gas damage can grant absorption, tactical creates one hidden
-  trigger point, and ultimate makes a timed gas area.
-- **Status:** analogue.
-- **Still missing:** current passive progress, six stored physical traps,
-  arming, shooting, grounding, owner limits, and persistent trap cleanup.
+- **Lapex today:** gas damage can grant absorption. Caustic places up to six
+  visible 225 HP traps that arm, trigger from enemies or shots, emit 22 seconds
+  of ramping non-stacking gas, ground enemies, and use shared cleanup.
+- **Status:** adapted, with trap overlap and model verification pending.
+- **Still missing:** current passive upgrade sources, exact placement rejection,
+  a gas-grenade model, and final multiplayer overlap tests.
 - [Official Caustic page](https://www.ea.com/games/apex-legends/apex-legends/characters-hub/caustic)
 
 ### Rampart
@@ -272,33 +282,37 @@ checklist in [Testing](TESTING.md).
 
 - **Apex idea:** run toward distant team needs, regenerate shields for one
   teammate and herself, and throw a destructible jammer array.
-- **Lapex today:** distant allies grant speed, tactical gives instant absorption
-  to all nearby allies, and ultimate is an undamageable slowing damage line.
+- **Lapex today:** distant allies grant speed, two independently recharging
+  tactical charges give instant absorption to all nearby allies, and ultimate
+  is an undamageable slowing damage line.
 - **Status:** analogue.
-- **Still missing:** banner and beacon paths, target choice, two charges,
-  regeneration over time, self/ally amounts, and damageable jammer objects.
+- **Still missing:** banner and beacon paths, target choice, regeneration over
+  time, exact self/ally amounts, and damageable jammer objects.
 - [Official Conduit page](https://www.ea.com/games/apex-legends/apex-legends/characters-hub/conduit)
 
 ### Gibraltar
 
 - **Apex idea:** raise a shield while ADS, gain sustained empty-hand sprint
   momentum, place a two-way shot-blocking dome, and call a bombardment.
-- **Lapex today:** sneaking blocks one hit every nine seconds, empty-hand sprint
-  grants speed, the dome protects nearby allies from incoming damage, and bombardment makes random blasts.
-- **Status:** adapted.
-- **Still missing:** ADS linkage, shield health, a real boundary that also blocks
-  outgoing shots, and physical bombardment markers.
+- **Lapex today:** right-click ADS blocks one hit every nine seconds, empty-hand
+  sprint grants speed, and a visible 12-second Dome stops hitscan and projectile
+  attacks crossing either direction for every team. Bombardment makes random blasts.
+- **Status:** adapted, with live Dome projectile and overlap verification pending.
+- **Still missing:** exact Gun Shield health, full projectile-plugin coverage,
+  and physical bombardment markers.
 - [Official Gibraltar page](https://www.ea.com/games/apex-legends/apex-legends/characters-hub/gibraltar)
 
 ### Lifeline
 
 - **Apex idea:** glide and let D.O.C. revive, send a healing drone that can
   follow an ally, and place Halo where everyone uses healing items faster.
-- **Lapex today:** midair sneak gives slow fall, low-health allies receive
-  regeneration, a fixed particle point heals allies, and Halo gives allies protection and healing.
-- **Status:** analogue.
-- **Still missing:** downed/revive state, a visible following D.O.C., ally
-  assignment, healing-item speed, and correct enemy access to Halo.
+- **Lapex today:** midair Sneak gives slow fall and low-health allies receive an
+  analogue heal. A visible D.O.C. heals allies and can be reassigned to follow
+  one. Halo is visible, indestructible, team-neutral, and enemy-colored, but no
+  longer grants unrelated protection or regeneration.
+- **Status:** D.O.C. is adapted; passive and Halo remain partial analogues.
+- **Still missing:** downed/revive state and tested custom health/shield items
+  whose use time Halo can actually shorten.
 - [Official Lifeline page](https://www.ea.com/games/apex-legends/apex-legends/characters-hub/lifeline)
 
 ### Loba
@@ -332,8 +346,8 @@ checklist in [Testing](TESTING.md).
   tactical is a stationary protection point, and ultimate pushes Newcastle to a particle wall.
 - **Status:** analogue.
 - **Still missing:** downed dragging and revive, a visible movable shield with
-  health, target selection, and a physical fortified wall. The current extra
-  ultimate impact damage is not part of the official idea.
+  health, target selection, a physical fortified wall, full stronghold geometry,
+  wall health, and electrified enemy crossing behavior.
 - [Official Newcastle page](https://www.ea.com/games/apex-legends/apex-legends/characters-hub/newcastle)
 
 ## Research Notes

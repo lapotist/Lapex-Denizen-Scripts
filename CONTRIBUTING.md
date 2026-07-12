@@ -78,6 +78,15 @@ Do not move the shooter to create recoil. Recoil changes camera yaw and pitch on
 7. Test with an ally and an enemy, then repeat after death, quit, legend switch,
    script reload, and a second player using the same legend.
 
+For a physical object, use `lapex_deployable_register` and the shared cleanup
+path. Add a kind index entry, rehydrate/resume cases, a visual-only item, a
+generated model, and validator coverage. Paper 26.1 may reject a Denizen spawn
+adapter even when native summon works; use the shared unique-tag native helpers
+instead of selecting the nearest untagged entity.
+
+For a multi-charge power, store a charge count and due-time list through the
+shared charge gate. A failed placement must call `lapex_legend_refund_charge`.
+
 ## Required Checks
 
 From the Paper console:
@@ -86,6 +95,9 @@ From the Paper console:
 ex reload scripts_now
 ex run lapex_validate
 ex run lapex_map_validate
+ex run lapex_deployable_smoke def.owner:<server.offline_players.first> def.location:<world[world].spawn_location.above[4]>
+ex run lapex_dome_geometry_smoke def.center:<world[world].spawn_location.above[2]>
+ex run lapex_charge_smoke def.target:<server.offline_players.first>
 ```
 
 Expected results:
@@ -93,7 +105,13 @@ Expected results:
 ```text
 Lapex validation passed: 32 guns and 28 legends resolved.
 Lapex map validation passed: 17 POIs, 640x640 border, and all build tasks resolved.
+Lapex deployable smoke passed: native proxies, extras, register, replace, and cleanup.
+Lapex Dome geometry smoke passed: upper shell, both directions, internal shot, and lower-half rejection.
+Lapex charge smoke passed: due ordering, charge cap, and test-flag rollback.
 ```
+
+The owner-based smokes need one player profile. On a brand-new server, join once
+or replace `<server.offline_players.first>` with a known PlayerTag.
 
 For the resource pack:
 

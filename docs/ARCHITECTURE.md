@@ -14,7 +14,12 @@ player input
    |
    +--> legend input --> legend registry --> passive / tactical / ultimate
                                                    |
-                                                   +--> shared team and zone helpers
+                                                   +--> teams, charges, mobility
+                                                   +--> deployable registry
+                                                            |
+                                                            +--> models, health,
+                                                                 loops, damage,
+                                                                 cleanup, rehydrate
 
 admin input --> commands and validators
 
@@ -52,6 +57,10 @@ Never solve drift by copying the whole server directory into Git.
 | `lapex_legend_passives.dsc` | Passive events and the shared once-per-second passive loop. |
 | `lapex_legend_tacticals.dsc` | Tactical dispatcher and tactical tasks. |
 | `lapex_legend_ultimates.dsc` | Ultimate dispatcher and ultimate tasks. |
+| `lapex_deployables.dsc` | Physical-object sessions, health, global kind index, damage, extras, cleanup, and rehydration. |
+| `lapex_deployable_items.dsc` | Visual-only model items for physical legend devices. |
+| `lapex_mobility.dsc` | Ash transit, Octane launch/double jump, Axle steering, and transient movement cleanup. |
+| `lapex_support_devices.dsc` | Dome geometry/projectiles plus D.O.C. and Halo loops. |
 | `lapex_commands.dsc` | Operator commands and the gun/legend registry validator. |
 | `lapex_map_data.dsc` | World constants, POIs, build units, and signatures. |
 | `lapex_map_engine.dsc` | World lifecycle, build scheduling, common geometry, and map validation. |
@@ -123,9 +132,36 @@ legend-specific task
         +--> scan and private outline helpers
 ```
 
-The generic gate starts the cooldown before dispatch. A task that cannot start
-must refund that cooldown. Crypto is a special case: the drone cooldown is
-cleared after a successful launch and begins when the drone is destroyed.
+The generic gate starts a simple cooldown or spends one stored charge before
+dispatch. A task that cannot start must refund the matching transaction. Charge
+due times are persistent lists; the secondly loop restores every elapsed due
+time after a reload or reconnect. Crypto is a separate lifecycle: successful
+launch clears its tactical cooldown and drone destruction begins recovery.
+
+## Deployable Pipeline
+
+```text
+ability validates safe placement
+        |
+        v
+native proxy spawn -> equip visual-only model -> set kind state
+        |
+        v
+lapex_deployable_register
+   | owner session list
+   | exact owner <-> entity authority
+   | global kind index
+   | optional extra visual entities
+        |
+        +--> kind loop: trigger, pull, launch, shield, heal, or display
+        +--> shared damage router for shootable devices
+        +--> one idempotent cleanup task
+```
+
+Paper 26.1 rejects the tested Denizen adapter spawn for some entity types. The
+native spawn helpers summon with a unique scoreboard tag, wait for Paper to
+track the entity, and bind only that exact result. Never select "the closest"
+untagged entity when simultaneous casts are possible.
 
 ## Team Contract
 
@@ -137,7 +173,9 @@ Damage, scans, shields, and heals should use the shared procedure. A new task
 must not invent a second team rule.
 
 Crypto body and drone proxies resolve to their real owner only when their
-session matches the owner's active session.
+session matches the owner's active session. Shared scans and ally zones query
+living entities, discard the remote spectator camera, and deduplicate by the
+resolved combat player. This makes the mannequin body the combat anchor.
 
 ## State Groups
 
@@ -152,6 +190,10 @@ Flags act like internal APIs between scripts.
 | Shared combat | `legend_protected`, `pylon_protected`, `phased`, `legend_silenced`, `tempest`, `amped_cover` | Timed ability state. |
 | Combat telemetry | `last_target`, `last_attacker`, `last_shot_location`, `last_damage_location`, `low_health`, `threatened_by` | Short evidence for passives. |
 | Crypto session | `crypto_active`, `crypto_origin`, `crypto_gamemode`, body/drone entity, body chunk, drone health | From launch through one cleanup path. |
+| Deployable session | owner `deployable.*`, `deployable_sessions.*`; entity owner/kind/session/health/state; server `deployable_index.*` | Placement through cleanup or stale reconciliation. |
+| Mobility | `octane_launch_token`, `octane_double_ready`, `octane_fall_safe`, `nitro_token`, `slide_source`, `ash_transit_active`, `ash_invisibility` | One ride, slide, landing, or transit; always tokenized and cleanup-owned. |
+| Stored charges | `charges.*`, `charge_due.*`, `charge_groups`, short `charge_transaction.*` | Persistent count and due times; transaction expires after dispatch. |
+| Item special state | item `sentinel_amped`, item `rampage_amped`; player `a13_regen_due` | Physical item expiry or background round restoration. |
 | Private scan | `scan_token.*` | Tokenized per viewer and target. |
 | Map build | `lapex.map.v1.complete`, `lapex.map.v1.units.*` | Versioned server checkpoints. |
 
@@ -208,16 +250,16 @@ command that clears map checkpoints or geometry.
 `tools/build_resource_pack.py` produces:
 
 ```text
-custom model data 1001..1032
+custom model data 1001..1032 and 1101..1108
         |
         v
 assets/minecraft/items/carrot_on_a_stick.json
         |
         v
-assets/lapex/models/item/<weapon>.json
+assets/lapex/models/item/<weapon-or-device>.json
         |
         v
-assets/lapex/textures/item/<weapon>.png
+assets/lapex/textures/item/<weapon-or-device>.png
 ```
 
 Generated models and textures are committed so servers can distribute the pack.
@@ -227,11 +269,14 @@ one generated weapon file because the next build will replace it.
 ## Known Architecture Gaps
 
 - The validator checks registry resolution, not full behavior.
-- Many placed legend abilities are currently task-local particle zones, not a
-  shared damageable deployable system.
+- Eight placed objects use the shared lifecycle. Catalyst spikes, Conduit
+  jammers, Loba market, Newcastle shields, Pathfinder zipline, Rampart cover,
+  Seer Exhibit, Sparrow devices, and Wattson nodes still need migration.
+- Halo has correct visible/team-neutral membership but no tested custom
+  consumable-time subsystem yet.
 - Several roster counts and help lines are hard-coded.
 - Model JSON validity does not prove that a model looks correct in Minecraft.
 - Input, camera, multiplayer, and cleanup behavior still need live clients.
 
-See [Deployable Design](DEPLOYABLE_DESIGN.md) for the planned shared lifecycle
-before expanding placed abilities.
+See [Deployable Design](DEPLOYABLE_DESIGN.md) for the implemented contract and
+the remaining rollout before expanding placed abilities.

@@ -34,28 +34,42 @@ approximations unless a current patch note below supports them.
 
 ## Cross-Legend Findings
 
-1. Most deployables are currently undamageable particle locations rather than
-   entities. They have no health, hitbox, destruction, or shared lifecycle.
-2. Cooldowns use one boolean expiry flag. Multi-charge tactical powers cannot
-   work correctly without a charge system.
+1. Eight placed objects now use the shared model/session lifecycle. Most other
+   deployables remain undamageable particle locations without health or hitboxes.
+2. Persistent independent charge storage now covers Conduit, Pathfinder, and
+   Octane. Other charge-like powers still need kit-specific review.
 3. Downed players, revives, death boxes, loot containers, beacons, and
    consumable timing do not have full shared subsystems.
-4. Alter, Ash, Loba, and Valkyrie remove important player choice in their
-   current implementations.
+4. Ash now uses voluntary entry. Alter, Loba, and Valkyrie still remove important
+   player choice or provide no selection interface.
 5. Many team mechanics require explicit Lapex team assignment.
 6. `/legend info` must describe current implementation, not an unbuilt target.
 
 ## Priority Order
 
-1. Restore player choice for forced travel and target-selection mechanics.
-2. Add a shared charge model.
-3. Add the shared damageable deployable lifecycle.
+1. Continue restoring player choice for Alter, Loba, Valkyrie, and support targeting.
+2. Migrate the next ranked deployables through the existing shared lifecycle.
+3. Add a tested custom consumable subsystem before calling Halo functional.
 4. Add downed/revive, loot, and beacon subsystems only after separate research.
-5. Revisit passives whose current Minecraft analogue no longer matches the
+5. Continue replacing passives whose Minecraft analogue no longer matches the
    official ability concept.
+
+## July Implementation Checkpoint
+
+- Camera-only recoil, right-click ADS, special-gun state, and improved tracers
+  passed static and server validation. The stationary live-client test remains pending.
+- Crypto now uses exact session-bound native proxies, shotgun damage collection,
+  reconnect origin recovery, and body-aware scan/support selectors.
+- Caustic, Horizon, Ash, Octane, Axle, Gibraltar, and Lifeline gained visible
+  shared-lifecycle objects with generated low-poly models.
+- Gibraltar Dome uses an exact segment/sphere boundary solution for both shot
+  directions. D.O.C. follows assigned allies; Halo no longer grants unrelated buffs.
+- Catalyst's unrelated personal damage reduction was replaced by a three-hit
+  reinforced-door analogue. Newcastle's unsupported landing damage was removed.
 
 ## Acceptance Rule
 
-No legend moves from analogue to adapted or from adapted to closer adaptation
-until its research note, automated validation, live-client test, multiplayer
-test, and cleanup test all pass.
+The guide's analogue/adapted labels describe how closely the current code maps
+the researched idea; they are not test certification. A change is not called
+verified or one-to-one until its research note, automated validation,
+live-client test, multiplayer test, and cleanup test all pass.

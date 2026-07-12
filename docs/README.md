@@ -8,6 +8,7 @@ Start with the guide that matches what you want to do.
 | [Legend Guide](LEGEND_GUIDE.md) | Players and testers | What every legend does in Lapex and where Minecraft changes the idea. |
 | [Weapon Tuning](WEAPON_TUNING.md) | Balance contributors | Damage, fire rate, spread, recoil, tracers, and safe tuning. |
 | [Architecture](ARCHITECTURE.md) | Maintainers | How the files, events, tasks, flags, and resource pack fit together. |
+| [Deployable Design](DEPLOYABLE_DESIGN.md) | Gameplay engineers | The physical-object contract, current migrations, cleanup, and remaining rollout. |
 | [Testing](TESTING.md) | Testers and maintainers | Automated checks and live-player test cases. |
 | [Research and Fidelity](RESEARCH_AND_FIDELITY.md) | Everyone changing gameplay | How to research Apex first and describe whether a feature is exact or adapted. |
 | [Contributing](../CONTRIBUTING.md) | Contributors | The full change, test, review, and pull-request workflow. |

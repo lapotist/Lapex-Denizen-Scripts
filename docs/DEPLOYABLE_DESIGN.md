@@ -7,9 +7,15 @@ players can touch or shoot them.
 This page is the design gate for those features. It describes what must exist
 before a placed power may be called complete.
 
-## Current Warning
+## Current Implementation
 
-Several current Lapex powers are timed particle zones. A particle zone can show
+The shared runtime now owns Caustic traps, Horizon N.E.W.T., Ash Phase Breach,
+Octane pads, Axle gates, Gibraltar Dome, Lifeline D.O.C., and Lifeline Halo. It
+provides exact owner/entity sessions, a server-wide kind index, primary and
+extra visual entities, scripted Apex health, owner limits, damage routing,
+cleanup, and chunk rehydration.
+
+Other placed powers are still timed particle zones. A particle zone can show
 an area and run effects, but it does not automatically provide:
 
 - a visible physical object;
@@ -39,9 +45,12 @@ Every placed object needs answers to these questions:
 
 Write the answers in a research note before implementation.
 
-## Proposed Shared Record
+## Required Record
 
-Each deployed object should have one session record.
+Each deployed object should have one logical session record. The current
+runtime stores identity, owner, session, health, label, owner lists, and kind
+index directly. Other rows below may be derived or kind-specific until the
+next registry migration.
 
 | Field | Purpose |
 | --- | --- |
@@ -49,13 +58,13 @@ Each deployed object should have one session record.
 | `owner` | Player who placed it. |
 | `team` | Team snapshot or owner-based team lookup rule. |
 | `session` | Random UUID shared by owner state and every proxy entity. |
-| `health` | Current scripted health in Minecraft health units. |
+| `health` | Current scripted health in Apex HP. |
 | `health_max` | Maximum scripted health. |
 | `origin` | Authoritative world location. |
 | `created_at` | Time used for duration and debugging. |
 | `expires_at` | Optional expiry time. |
 | `state` | Arming, active, triggered, disabled, destroyed, or expired. |
-| `entities` | Hitbox and visible proxy entity IDs. |
+| `entities` | One authoritative primary plus optional cleanup-owned visual extras. |
 | `chunks` | Any chunks kept loaded by this session. |
 
 The owner should also keep a list of active session IDs. This supports charge
@@ -132,8 +141,9 @@ random object.
 
 ## Tick and Performance Budget
 
-One repeat loop per object scales badly. Prefer one shared deployable heartbeat
-that processes registered objects in batches.
+The current implementation uses one tokenized queue per active object. Owner
+limits and short intervals keep the first migration bounded, but a central
+heartbeat is still preferable before high-count fences, spikes, or cover ship.
 
 Guidelines:
 
@@ -171,25 +181,22 @@ same tick.
 
 ## EMP and Disable Rules
 
-Crypto EMP should not claim to disable traps until deployables have a shared
-registry and disabled state. When that state exists, EMP can query registered
-enemy objects within range, apply the researched behavior, and let each kind
-decide whether "disable" means destroy, pause, or suppress an effect.
+Crypto EMP now queries the shared index and destroys enemy Gibraltar Domes and
+D.O.C. drones. Nox gas temporarily pauses enemy D.O.C. healing. Other trap
+disable rules remain unimplemented until each kind has a researched policy; do
+not advertise a blanket EMP disable.
 
 ## Rollout Order
 
-Build and test the shared lifecycle with a simple object first. Then move more
-complex abilities onto it.
+The current rollout is:
 
-Suggested order:
-
-1. One health-based stationary device.
-2. Caustic trap arming and trigger state.
-3. Wattson pylon and fence-node links.
-4. Horizon, Seer, and Conduit damageable ultimate devices.
-5. Rampart cover with directional health regions.
-6. Mobile shields and moving devices.
-7. Multi-object choice interfaces such as Loba's Black Market.
+1. Implemented; live verification pending: shared health/session lifecycle and native proxy smoke test.
+2. Implemented; live verification pending: Caustic trap and Horizon N.E.W.T.
+3. Implemented; live verification pending: Ash, Octane, and Axle placed mobility.
+4. Implemented; live verification pending: Gibraltar Dome boundary plus Lifeline D.O.C./Halo visuals.
+5. Next: Seer, Conduit, Sparrow, Wattson, and Catalyst damageable devices.
+6. Then: Rampart cover, Newcastle shields, and moving devices.
+7. Then: Pathfinder zipline and choice interfaces such as Loba's market.
 
 Each migration needs its own research note and live multiplayer test.
 

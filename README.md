@@ -1,13 +1,14 @@
 # Lapex Denizen Arsenal and Legends
 
-A complete, data-driven Apex Legends gameplay pack for Paper and Denizen. It
-implements the current Season 29 / Overclocked roster: 29 standard guns, the
+A broad, data-driven Apex Legends gameplay pack for Paper and Denizen. It
+routes the current Season 29 / Overclocked roster: 29 standard guns, the
 three genuine legend-specific guns, and all 28 legends with a passive,
 tactical, and ultimate.
 
 Lapex is a Minecraft adaptation, not a one-to-one copy. Some powers currently
-use documented particle, potion, or movement analogues while their more complex
-physical devices are being migrated to a shared deployable system.
+use documented particle, potion, or movement analogues. Eight complex objects
+now use a shared physical deployable system; the remaining particle-only powers
+are listed honestly in the legend guide while they are migrated.
 
 ## Documentation
 
@@ -75,8 +76,8 @@ an ally. `/lapex setteam` is the authoritative admin path; self-assignment with
 `/legend team` requires the separate `lapex.team.manage` permission.
 
 Damaging and scanning legend abilities target enemy players. Neutral movement
-devices such as Nitro Gates, Gravity Lifts, and Launch Pads remain usable by
-living entities; Lapex guns can also be fired at living entities normally.
+devices such as Nitro Gates and Launch Pads remain usable by players from any
+team; Lapex guns can also be fired at living entities normally.
 
 ## Kings Canyon World
 
@@ -153,7 +154,6 @@ not require the Minecraft server to be running.
 
 - Left-click: fire; holding supplies repeated input
 - Hold right-click: ADS zoom and accuracy
-- Sneak: alternate ADS accuracy and legend modifier
 - F / swap hands: reload
 - Q / drop while holding a Lapex gun: selected legend tactical
 - Sneak + Q while holding a Lapex gun: selected legend ultimate
@@ -216,7 +216,7 @@ represented in the base tuning for G7 Scout, L-STAR, and Kraber.
 This follows the current roster categories rather than stale character-body
 copy: Ash is a Skirmisher, Revenant is Assault, and Valkyrie is Recon. Current
 ability names include Ash's Predator's Pursuit, Caustic's Field Research,
-Rampart's Battle Modder, and Lifeline's Combat Glide and D.O.C. Halo.
+Rampart's Modded Loader, and Lifeline's Combat Glide and D.O.C. Halo.
 
 ## Distinct Mechanics
 
@@ -228,24 +228,29 @@ Rampart's Battle Modder, and Lifeline's Combat Glide and D.O.C. Halo.
 - Hemlok Breach Charge with radial falloff and its own cooldown
 - Thermite-revved Rampage and shield-cell-amped Sentinel
 - Sheila spin-up, 1,200 RPM cap, and Rampart-sized 173-round magazine
-- A-13 marks targets, doubles Vantage follow-up damage, and grants other guns a
-  15% mark bonus; rounds regenerate through a 40-second shell reload
+- A-13 marks targets, doubles Vantage follow-up damage, grants other guns a 15%
+  mark bonus, and regenerates carried rounds in the background
 - Whistler has smart-ray aim assist, direct heat tagging, a missed-shot proximity
-  field, firing-driven overheat damage, and a temporary weapon jam
+  field, two rounds, 50 overheat damage, a 15-second heat state, and a temporary jam
 - Crypto pilots a visible, damageable 50 HP drone in spectator flight while a
   player-shaped, damageable body remains at the activation point
+- Item-scoped Sentinel and Rampage charge state cannot power another copy of the gun
 
 ## Legend Mechanics
 
 - Team-aware private recon outlines, heartbeat/track vision, and persistent
   tracker darts, drones, and Exhibit scans
-- Ray-traced portals, bracelet jumps, grapples, pounces, Echo leaps, ziplines,
-  jump pads, gravity lifts, VTOL flight, and Axle Nitro Gates
+- A voluntary one-way Ash breach, steerable Axle slides and 100 HP Nitro Gates,
+  a reusable 200 HP Octane pad with one airborne double jump, and Wraith portals
 - Persistent smoke, gas, fire, ferrofluid, fences, electric barricades, healing
   drones, domes, mobile cover, pylons, and D.O.C. Halo zones
+- Visible shared-lifecycle models for Caustic traps, Horizon N.E.W.T., Ash
+  portals, Octane pads, Axle gates, Gibraltar Dome, Lifeline D.O.C., and Halo
+- Two-way Gibraltar Dome shot interception, following D.O.C. healing, Crypto
+  body-aware scans/support, and persistent charges for Conduit, Pathfinder, and Octane
 - Delayed artillery, missile grids, EMP, Black Hole pull, Motherlode ring,
   Wrecking Ball path, Stinger Bolt blast, and Kickstart displacement
-- Weapon integration for Rampart's Battle Modder and Amped Cover, Maggie's
+- Weapon integration for Rampart's Modded Loader and Amped Cover, Maggie's
   Warlord's Ire, Ballistic's Tempest, and Wraith's phased attack lock
 - Sheila, A-13 Sentry, and Whistler are granted by the matching legend ability,
   only fire for their owning legend, and continue through the same tested firearm
@@ -256,16 +261,17 @@ Minecraft health. Minecraft armor still reduces projectile damage. All guns are
 hitscan at Minecraft scale; the Charge Rifle preserves range scaling visually
 and numerically rather than simulating a slow entity projectile.
 
-All items use `carrot_on_a_stick` for reliable use input and have unique
-`custom_model_data` values 1001 through 1032. Previously issued horse-armor guns
-are migrated when held without losing their magazine state.
+All guns use `carrot_on_a_stick` for reliable use input and have unique
+`custom_model_data` values 1001 through 1032. Eight visual-only device items use
+1101 through 1108. Previously issued horse-armor guns are migrated when held
+without losing their magazine state.
 
 ## Resource Pack
 
 The included `resource-pack` targets Minecraft 26.1.2 resource format 84.0. It
-contains family-specific low-poly 3D silhouettes, per-weapon geometry accents,
-and per-weapon palette textures, with first-person, third-person, GUI, ground,
-and fixed transforms. Install that directory as a client pack, or use the generated
+contains 32 low-poly weapon models and eight low-poly legend-device models with
+generated palette textures and the needed hand, head, GUI, ground, and fixed
+transforms. Install that directory as a client pack, or use the generated
 `dist/lapex-resource-pack-26.1.2.zip` archive.
 
 Models and textures are reproducible rather than hand-edited binaries:
@@ -281,16 +287,17 @@ carrot-on-a-stick appearance.
 
 The scripts preserve each kit's combat purpose with Minecraft-native movement,
 effects, particles, ray traces, and timed zones. Apex-only systems with no
-equivalent here, including knockdown shields, death boxes, Ring Consoles,
-care-package scans, and door reinforcement state, use a nearby combat analogue
+equivalent here, including knockdown shields, death boxes, Ring Consoles, and
+care-package scans, use a nearby combat analogue
 described by `/legend info`. Crypto's drone uses a real spectator camera and a
 damageable player-shaped Paper mannequin. No Citizens dependency or client mod
 is required.
 
 Attachments, floor-loot tables, rarity upgrades, reserve-ammo inventory,
 optics UI, akimbo rendering, battle-royale rings, Evo upgrades, and a downed
-state remain outside this standalone pack. Base cooldowns intentionally do not
-apply perk upgrade modifiers or multi-charge storage.
+state remain outside this standalone pack. Perk upgrade modifiers are not
+applied. Multi-charge storage is implemented for current Conduit, Pathfinder,
+and Octane charge rules and replenishes independently across script reloads.
 
 ## References
 
