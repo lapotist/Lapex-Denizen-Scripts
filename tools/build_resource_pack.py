@@ -50,11 +50,13 @@ WEAPONS = [
 
 
 def write_json(path: Path, value: object) -> None:
+    """Write stable, human-readable generated JSON."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
 
 
 def png(path: Path, width: int, height: int, pixels: list[tuple[int, int, int, int]]) -> None:
+    """Write a dependency-free RGBA PNG from row-major pixels."""
     def chunk(kind: bytes, data: bytes) -> bytes:
         return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
 
@@ -76,6 +78,7 @@ def shade(rgb: tuple[int, int, int], factor: float) -> tuple[int, int, int, int]
 
 
 def weapon_texture(path: Path, body: tuple[int, int, int], accent: tuple[int, int, int], seed: int) -> None:
+    """Build four reusable material tiles with deterministic panel details."""
     colors = [shade(body, 1.0), shade(body, 0.55), shade(accent, 1.0), shade(accent, 1.35)]
     pixels: list[tuple[int, int, int, int]] = []
     for y in range(16):
@@ -100,6 +103,7 @@ def weapon_texture(path: Path, body: tuple[int, int, int], accent: tuple[int, in
 
 
 def cube(start: list[float], end: list[float], patch: str = "body", rotation: dict | None = None) -> dict:
+    """Return one Minecraft model element using a named texture quadrant."""
     uv = {"body": [0, 0, 8, 8], "dark": [8, 0, 16, 8], "accent": [0, 8, 8, 16], "light": [8, 8, 16, 16]}[patch]
     result = {
         "from": start,
@@ -112,6 +116,7 @@ def cube(start: list[float], end: list[float], patch: str = "body", rotation: di
 
 
 def model_for(family: str, variant: int) -> dict:
+    """Build a family silhouette plus deterministic per-weapon geometry accents."""
     display = {
         "thirdperson_righthand": {"rotation": [0, -90, 15], "translation": [0, 2.5, 1], "scale": [0.7, 0.7, 0.7]},
         "thirdperson_lefthand": {"rotation": [0, 90, -15], "translation": [0, 2.5, 1], "scale": [0.7, 0.7, 0.7]},
@@ -190,6 +195,7 @@ def model_for(family: str, variant: int) -> dict:
 
 
 def pack_icon() -> None:
+    """Create the small Lapex pack icon without storing a source bitmap."""
     pixels = []
     for y in range(64):
         for x in range(64):

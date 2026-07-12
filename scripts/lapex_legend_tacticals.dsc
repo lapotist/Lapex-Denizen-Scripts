@@ -251,6 +251,8 @@ lapex_tactical_crypto:
     - flag <[owner]> lapex.crypto_body_chunk:<[origin].chunk>
     - flag <[owner]> lapex.crypto_drone:<[drone].location> expire:2s
     - flag <[owner]> lapex.crypto_drone_health:10
+    # Drone recovery begins on destruction, not launch. Keep the body chunk
+    # loaded so the full 200-block flight does not invalidate its proxy.
     - flag <[owner]> lapex.cooldown.tactical:!
     - chunkload <[origin].chunk>
     - adjust <[owner]> gamemode:spectator
@@ -386,11 +388,15 @@ lapex_crypto_exit:
     - flag <[owner]> lapex.crypto_drone_health:!
     - flag <[owner]> lapex.crypto_destroyed:!
     - flag <[owner]> lapex.crypto_body_chunk:!
+    # Destruction uses the official recovery window. A normal recall only gets
+    # a short input lock so it cannot be spammed in the same client tick.
     - if <[reason]> == destroyed:
         - flag <[owner]> lapex.cooldown.tactical expire:30s
     - else if <list[manual|body_hit].contains[<[reason]>]>:
         - flag <[owner]> lapex.cooldown.tactical expire:2s
     - if <[body_chunk]> != null:
+        # Denizen chunk tickets are plugin-wide. Do not remove the shared ticket
+        # while another active Crypto body still owns this chunk.
         - define keep_chunk false
         - foreach <server.online_players> as:other:
             - if <[other]> != <[owner]> && <[other].has_flag[lapex.crypto_active]> && <[other].flag[lapex.crypto_body_chunk]||null> == <[body_chunk]>:

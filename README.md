@@ -5,6 +5,21 @@ implements the current Season 29 / Overclocked roster: 29 standard guns, the
 three genuine legend-specific guns, and all 28 legends with a passive,
 tactical, and ultimate.
 
+Lapex is a Minecraft adaptation, not a one-to-one copy. Some powers currently
+use documented particle, potion, or movement analogues while their more complex
+physical devices are being migrated to a shared deployable system.
+
+## Documentation
+
+- [Player Guide](docs/PLAYER_GUIDE.md)
+- [Legend Guide and implementation status](docs/LEGEND_GUIDE.md)
+- [Weapon tuning](docs/WEAPON_TUNING.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Deployable design](docs/DEPLOYABLE_DESIGN.md)
+- [Testing](docs/TESTING.md)
+- [Research and fidelity rules](docs/RESEARCH_AND_FIDELITY.md)
+- [Contributing](CONTRIBUTING.md)
+
 ## Requirements
 
 - Paper 26.1.2 or newer
@@ -164,10 +179,12 @@ left-click swings for the other trigger types; their action locks still
 enforce the configured cadence, while deliberate clicks are needed to reach the
 fastest semi-automatic rates.
 
-Legend cooldowns use the current base Season 29 values without upgrades. They
-are stored as expiring player flags, persist through weapon swaps and legend
-changes, and can be cleared by an admin with `/lapex resetcooldowns` while
-testing.
+Legend cooldowns are stored as expiring player flags, persist through weapon
+swaps and legend changes, and can be cleared by an admin with
+`/lapex resetcooldowns` while testing. The registry targets Season 29, but
+multi-charge powers and values not published in current official notes remain
+documented approximations. See the
+[legend fidelity audit](docs/research/features/legend-fidelity-audit-2026-07.md).
 
 ## Gun Roster
 

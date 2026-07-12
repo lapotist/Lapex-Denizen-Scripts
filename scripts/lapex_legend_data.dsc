@@ -67,9 +67,9 @@ lapex_legend_data:
             ultimate: Kickstart
             tactical_cooldown: 25s
             ultimate_cooldown: 1.5m
-            passive_note: Increase speed and lateral control while sliding.
+            passive_note: Sneak on the ground for a short forward slide-like push and speed boost.
             tactical_note: Place a team-neutral speed gate that launches anyone passing through.
-            ultimate_note: Send a drone at the nearest hostile to damage, slow, and knock it upward.
+            ultimate_note: Strike the nearest hostile after a delay, then damage, slow, and push it upward.
         ballistic:
             name: Ballistic
             class: Assault
@@ -80,7 +80,7 @@ lapex_legend_data:
             ultimate_cooldown: 2m
             passive_note: Use sneak plus swap to rotate a Lapex gun through the offhand Sling slot.
             tactical_note: Deploy the Whistler smart pistol for lock-on heat rounds and proximity traps.
-            ultimate_note: Give the squad faster reloads and infinite ammo while upgrading the Sling weapon.
+            ultimate_note: Give nearby allies infinite Lapex ammo, faster reloads, speed, and haste for 30s.
         bangalore:
             name: Bangalore
             class: Assault
@@ -102,7 +102,7 @@ lapex_legend_data:
             ultimate_cooldown: 2.5m
             passive_note: Show recent player tracks and interaction clues.
             tactical_note: Briefly outline nearby hostiles with a private radial scan.
-            ultimate_note: Boost speed and threat vision and extend duration on knocks.
+            ultimate_note: Boost speed and night vision while repeatedly outlining nearby enemies for 30s.
         catalyst:
             name: Catalyst
             class: Controller
@@ -111,7 +111,7 @@ lapex_legend_data:
             ultimate: Dark Veil
             tactical_cooldown: 20s
             ultimate_cooldown: 2.5m
-            passive_note: Reinforce and rebuild doors with ferrofluid.
+            passive_note: Sneak-use a door to close it and gain a short reinforced damage state.
             tactical_note: Throw a persistent ferrofluid trap that slows and damages enemies.
             ultimate_note: Raise a long vision-blocking wall that hinders enemies crossing it.
         caustic:
@@ -123,7 +123,7 @@ lapex_legend_data:
             tactical_cooldown: 20s
             ultimate_cooldown: 2m
             passive_note: Earn a temporary absorption shield after repeated Nox ability damage.
-            tactical_note: Place a proximity canister that emits damaging Nox gas when triggered.
+            tactical_note: Place a temporary proximity point that emits damaging Nox gas when triggered.
             ultimate_note: Throw a grenade that fills its impact area with Nox gas.
         conduit:
             name: Conduit
@@ -133,9 +133,9 @@ lapex_legend_data:
             ultimate: Energy Barricade
             tactical_cooldown: 30s
             ultimate_cooldown: 2.5m
-            passive_note: Grant speed while running toward an ally outside tactical range.
+            passive_note: Gain speed while a teammate is more than 20 blocks away.
             tactical_note: Give Conduit and nearby allies temporary absorption shields.
-            ultimate_note: Deploy a line of destructible jammers that slows and damages enemies.
+            ultimate_note: Create a timed particle line that slows and damages enemies.
         crypto:
             name: Crypto
             class: Recon
@@ -166,8 +166,8 @@ lapex_legend_data:
             ultimate: Defensive Bombardment
             tactical_cooldown: 13s
             ultimate_cooldown: 3m
-            passive_note: Raise an ADS shield with a 9s recharge, boost sustained maximum sprinting, and double Hardlight melee damage.
-            tactical_note: Deploy a temporary dome that protects nearby allies from incoming damage.
+            passive_note: Sneak to block one incoming hit every 9s and build speed while sprinting empty-handed.
+            tactical_note: Create a timed particle dome area that protects nearby allies from incoming damage.
             ultimate_note: Mark an area for a concentrated mortar bombardment.
         horizon:
             name: Horizon
@@ -177,9 +177,9 @@ lapex_legend_data:
             ultimate: Black Hole
             tactical_cooldown: 25s
             ultimate_cooldown: 3.5m
-            passive_note: Improve air control and remove landing slowdown.
+            passive_note: Gain slow falling and a short speed effect after jumping.
             tactical_note: Place a vertical gravity column that lifts players and entities.
-            ultimate_note: Throw a destructible device that pulls nearby enemies inward.
+            ultimate_note: Create a timed particle point that pulls enemies inward, then deals a final blast.
         lifeline:
             name: Lifeline
             class: Support
@@ -188,9 +188,9 @@ lapex_legend_data:
             ultimate: D.O.C. Halo
             tactical_cooldown: 45s
             ultimate_cooldown: 3m
-            passive_note: Sneak in midair to glide; D.O.C. also stabilizes nearby critical allies.
-            tactical_note: Deploy D.O.C. to heal nearby squadmates over time.
-            ultimate_note: Create a protective healing zone that blocks shots at its boundary.
+            passive_note: Sneak in midair to glide and periodically regenerate one nearby critical ally.
+            tactical_note: Create a fixed particle point that heals nearby allies over time.
+            ultimate_note: Create a timed zone that protects, heals, and slows the fall of nearby allies.
         loba:
             name: Loba
             class: Support
@@ -199,7 +199,7 @@ lapex_legend_data:
             ultimate: Black Market Boutique
             tactical_cooldown: 25s
             ultimate_cooldown: 2.5m
-            passive_note: Highlight valuable loot through nearby blocks and containers.
+            passive_note: Mark nearby dropped item entities with visible end-rod particles.
             tactical_note: Throw a bracelet and teleport Loba to its landing point.
             ultimate_note: Pull two random Lapex guns from the Black Market weapon pool.
         mad_maggie:
@@ -211,8 +211,8 @@ lapex_legend_data:
             tactical_cooldown: 28s
             ultimate_cooldown: 2m
             passive_note: Mark recently damaged enemies and remove the shotgun movement penalty.
-            tactical_note: Attach a drill to cover and burn entities on its far side.
-            ultimate_note: Release a bouncing ball that stuns enemies and leaves speed pads.
+            tactical_note: Burn enemies repeatedly around the aimed impact point.
+            ultimate_note: Trace a damaging path and give nearby allies short speed boosts along it.
         mirage:
             name: Mirage
             class: Support
@@ -221,7 +221,7 @@ lapex_legend_data:
             ultimate: Life of the Party
             tactical_cooldown: 15s
             ultimate_cooldown: 1m
-            passive_note: Cloak Mirage and his ally during revives with a 5s recloak reset.
+            passive_note: Sneak near a critical ally to briefly cloak both players and protect the ally.
             tactical_note: Send three moving particle decoys down diverging paths.
             ultimate_note: Cloak briefly and deploy a ring of moving particle decoys.
         newcastle:
@@ -233,8 +233,8 @@ lapex_legend_data:
             tactical_cooldown: 20s
             ultimate_cooldown: 2m
             passive_note: Sneak beside a critical ally to protect and regenerate them while moving slowly.
-            tactical_note: Deploy a pulsing forward shield that protects allies near it.
-            ultimate_note: Leap to a target position and raise an electrified defensive wall.
+            tactical_note: Create a stationary particle shield area that protects nearby allies.
+            ultimate_note: Leap to a target position and create a timed protective particle wall.
         octane:
             name: Octane
             class: Skirmisher
@@ -243,9 +243,9 @@ lapex_legend_data:
             ultimate: Launch Pad
             tactical_cooldown: 0.7s
             ultimate_cooldown: 1.5m
-            passive_note: Heal faster at low health and allow a 26s surge to refresh Stim through damage.
+            passive_note: Heal out of recent combat and auto-trigger extra regeneration once at low health.
             tactical_note: Spend health for six seconds of increased movement speed and slow resistance.
-            ultimate_note: Place a reusable jump pad with optional midair double jump.
+            ultimate_note: Create a timed launch point that pushes living entities forward and grants slow falling.
         pathfinder:
             name: Pathfinder
             class: Skirmisher
@@ -255,8 +255,8 @@ lapex_legend_data:
             tactical_cooldown: 20s
             ultimate_cooldown: 2m
             passive_note: Scan a beacon to remove 30 seconds from the current Zipline cooldown.
-            tactical_note: Pull Pathfinder to a grapple point using one of two recharging charges.
-            ultimate_note: Create a reusable 30-second zipline route for all players.
+            tactical_note: Pull Pathfinder once to the aimed grapple point after each shared cooldown.
+            ultimate_note: Create a 30-second particle route that pushes players from its start to its end.
         rampart:
             name: Rampart
             class: Controller
@@ -266,8 +266,8 @@ lapex_legend_data:
             tactical_cooldown: 20s
             ultimate_cooldown: 2m
             passive_note: Expand LMG and Sheila magazines by 15 percent and shorten reloads by 25 percent.
-            tactical_note: Store three directional walls whose base and energy health scale with Evo.
-            ultimate_note: Recharge Sheila as ammo and allow use after reaching 25 percent charge.
+            tactical_note: Create one timed protection and damage-boost zone in front of Rampart.
+            ultimate_note: Give mobile Sheila or refill it when already held.
         revenant:
             name: Revenant
             class: Assault
@@ -277,8 +277,8 @@ lapex_legend_data:
             tactical_cooldown: 20s
             ultimate_cooldown: 3m
             passive_note: Highlight nearby low-health enemies as the Assassin's Instinct combat analogue.
-            tactical_note: Charge and release a powerful forward leap.
-            ultimate_note: Grant a temporary shadow overshield that refreshes after knocks.
+            tactical_note: Push Revenant directly toward the aimed point and grant short resistance.
+            ultimate_note: Grant timed absorption, speed, resistance, and reduced incoming damage.
         seer:
             name: Seer
             class: Recon
@@ -288,8 +288,8 @@ lapex_legend_data:
             tactical_cooldown: 20s
             ultimate_cooldown: 3m
             passive_note: Show directional heartbeat cues while aiming down sights.
-            tactical_note: Emit a delayed tunnel scan that reveals and interrupts enemies.
-            ultimate_note: Throw a destructible device that tracks movement within a large sphere.
+            tactical_note: Damage, silence, and reveal enemies in a sphere at the aimed endpoint.
+            ultimate_note: Create a timed particle sphere that repeatedly reveals enemies inside it.
         sparrow:
             name: Sparrow
             class: Recon
@@ -300,7 +300,7 @@ lapex_legend_data:
             ultimate_cooldown: 2.5m
             passive_note: Allow one midair jump and reset it after two seconds on the ground.
             tactical_note: Fire a tracker dart that repeatedly reveals hostiles around its landing point.
-            ultimate_note: Fire a charged bolt that damages, slows, and reveals its impact area.
+            ultimate_note: Fire a delayed bolt burst that damages, slows, and reveals its impact area.
         valkyrie:
             name: Valkyrie
             class: Recon
@@ -309,9 +309,9 @@ lapex_legend_data:
             ultimate: Skyward Dive
             tactical_cooldown: 25s
             ultimate_cooldown: 2.5m
-            passive_note: Use a replenishing fuel meter for controlled jet-assisted flight.
-            tactical_note: Fire a missile grid that damages and briefly stuns targets.
-            ultimate_note: Launch attached squadmates into a skydive and scan visible enemies.
+            passive_note: Sneak in midair for a short jet lift with a 6s recovery.
+            tactical_note: Repeat missile explosions at one aimed point to damage and slow targets.
+            ultimate_note: Force nearby allies upward, then grant slow falling and speed.
         vantage:
             name: Vantage
             class: Recon
@@ -321,7 +321,7 @@ lapex_legend_data:
             tactical_cooldown: 17s
             ultimate_cooldown: 4m
             passive_note: Show health and range for the aimed hostile and mark one team spot every 10s.
-            tactical_note: Position Echo and leap to it when line of sight is clear.
+            tactical_note: Push Vantage directly toward the aimed point and grant slow falling.
             ultimate_note: Deploy or refill A-13; its hits amplify follow-up damage against marked targets.
         wattson:
             name: Wattson
@@ -331,9 +331,9 @@ lapex_legend_data:
             ultimate: Interception Pylon
             tactical_cooldown: 4s
             ultimate_cooldown: 3m
-            passive_note: Regenerate shields and make one Ultimate Accelerant fully charge the ultimate.
-            tactical_note: Store four nodes and connect pairs into damaging slowing fences.
-            ultimate_note: Place a pylon that intercepts ordnance and restores nearby shields.
+            passive_note: Gain a short absorption shield while out of recent combat.
+            tactical_note: Create one temporary particle fence line that damages and slows enemies.
+            ultimate_note: Create a timed pylon area that protects allies from projectiles and explosions while restoring protection.
         wraith:
             name: Wraith
             class: Skirmisher
@@ -342,6 +342,6 @@ lapex_legend_data:
             ultimate: Dimensional Rift
             tactical_cooldown: 15s
             ultimate_cooldown: 1.5m
-            passive_note: Warn Wraith when nearby enemies aim at or threaten her squad.
+            passive_note: Warn Wraith after combat telemetry marks a nearby threat.
             tactical_note: Enter a brief invulnerable phase that prevents attacking or interacting.
             ultimate_note: Link two temporary portals that players can traverse in either direction.

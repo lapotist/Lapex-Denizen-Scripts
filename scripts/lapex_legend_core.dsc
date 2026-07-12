@@ -42,6 +42,8 @@ lapex_legend_events:
         - define owner <[proxy].flag[lapex.crypto_body_owner]||<[proxy].flag[lapex.crypto_drone_owner]||null>>
         - if <[owner]> == null:
             - stop
+        # Owner flags alone are not authority: an entity left by an old queue or
+        # crash must match both the current session and the owner's exact proxy.
         - define session <[proxy].flag[lapex.crypto_session]||null>
         - if <[session]> == null || !<[owner].is_online||false>:
             - remove <[proxy]>
