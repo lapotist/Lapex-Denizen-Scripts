@@ -1,0 +1,19 @@
+# Local agent and editor state
+/.agents/
+/.codex/
+/.idea/
+/.vscode/
+
+# Paper runtime: worlds, caches, logs, jars, player data, and secrets
+/server/
+
+# Generated release archives
+/dist/
+
+# Tool caches and local diagnostics
+__pycache__/
+*.py[cod]
+*.log
+*.tmp
+*.jfr
+.DS_Store

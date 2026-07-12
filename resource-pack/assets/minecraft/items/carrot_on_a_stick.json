@@ -1,0 +1,244 @@
+{
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "minecraft:custom_model_data",
+    "index": 0,
+    "entries": [
+      {
+        "threshold": 1001,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/havoc"
+        }
+      },
+      {
+        "threshold": 1002,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/flatline"
+        }
+      },
+      {
+        "threshold": 1003,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/hemlok_breach"
+        }
+      },
+      {
+        "threshold": 1004,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/r301"
+        }
+      },
+      {
+        "threshold": 1005,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/nemesis"
+        }
+      },
+      {
+        "threshold": 1006,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/alternator"
+        }
+      },
+      {
+        "threshold": 1007,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/prowler"
+        }
+      },
+      {
+        "threshold": 1008,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/r99"
+        }
+      },
+      {
+        "threshold": 1009,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/volt"
+        }
+      },
+      {
+        "threshold": 1010,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/car"
+        }
+      },
+      {
+        "threshold": 1011,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/devotion"
+        }
+      },
+      {
+        "threshold": 1012,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/lstar"
+        }
+      },
+      {
+        "threshold": 1013,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/spitfire"
+        }
+      },
+      {
+        "threshold": 1014,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/rampage"
+        }
+      },
+      {
+        "threshold": 1015,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/g7_scout"
+        }
+      },
+      {
+        "threshold": 1016,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/triple_take"
+        }
+      },
+      {
+        "threshold": 1017,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/repeater_3030"
+        }
+      },
+      {
+        "threshold": 1018,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/bocek"
+        }
+      },
+      {
+        "threshold": 1019,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/charge_rifle"
+        }
+      },
+      {
+        "threshold": 1020,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/longbow"
+        }
+      },
+      {
+        "threshold": 1021,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/kraber"
+        }
+      },
+      {
+        "threshold": 1022,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/sentinel"
+        }
+      },
+      {
+        "threshold": 1023,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/eva8"
+        }
+      },
+      {
+        "threshold": 1024,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/mastiff"
+        }
+      },
+      {
+        "threshold": 1025,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/mozambique"
+        }
+      },
+      {
+        "threshold": 1026,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/peacekeeper"
+        }
+      },
+      {
+        "threshold": 1027,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/re45_burst"
+        }
+      },
+      {
+        "threshold": 1028,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/p2020"
+        }
+      },
+      {
+        "threshold": 1029,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/wingman"
+        }
+      },
+      {
+        "threshold": 1030,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/sheila"
+        }
+      },
+      {
+        "threshold": 1031,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/a13_sentry"
+        }
+      },
+      {
+        "threshold": 1032,
+        "model": {
+          "type": "minecraft:model",
+          "model": "lapex:item/whistler"
+        }
+      },
+      {
+        "threshold": 1033,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/carrot_on_a_stick"
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "minecraft:item/carrot_on_a_stick"
+    }
+  }
+}
