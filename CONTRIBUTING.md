@@ -61,7 +61,8 @@ source belongs in `resource-pack/`.
 3. Keep its ID in `standard_ids`, `legend_ids`, `all_ids`, and the correct category.
 4. Add or update its item in `scripts/apex_weapon_items.dsc`.
 5. Use `carrot_on_a_stick`, a unique `custom_model_data`, and matching `lapex.id`.
-6. Update `tools/build_resource_pack.py` and rebuild the pack.
+6. Update the stable mapping in `tools/build_resource_pack.py` and the named
+   visual blueprint in `tools/resource_pack_weapons.py`, then rebuild the pack.
 7. Run `/lapex validate`, then test hip fire, ADS, reload, empty reload, every fire
    mode, damage zones, recoil, tracers, item swaps, and legacy-item migration.
 
@@ -126,7 +127,9 @@ or replace `<server.offline_players.first>` with a known PlayerTag.
 For the resource pack:
 
 ```text
+python3 -m py_compile tools/build_resource_pack.py tools/resource_pack_weapons.py tools/render_weapon_catalog.py
 python3 tools/build_resource_pack.py
+python3 tools/render_weapon_catalog.py /tmp/lapex-weapon-catalog.svg
 find resource-pack -type f \( -name '*.json' -o -name 'pack.mcmeta' \) -print0 | xargs -0 -n1 jq -e . >/dev/null
 ```
 

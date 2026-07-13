@@ -8,9 +8,10 @@ without breaking controls or player movement.
 - `scripts/apex_weapon_data.dsc`: weapon numbers and roster lists
 - `scripts/apex_weapon_items.dsc`: item names, lore, model IDs, and starting ammo
 - `scripts/lapex_weapon_engine.dsc`: input, firing, damage, recoil, tracers, and reloads
-- `tools/build_resource_pack.py`: model-ID map, geometry, and texture generation
+- `tools/build_resource_pack.py`: model-ID map and generated pack output
+- `tools/resource_pack_weapons.py`: gun geometry, surfaces, and display scale
 
-Keep the same weapon ID in all four places.
+Keep the same weapon ID in all five places.
 
 ## Shot Flow
 

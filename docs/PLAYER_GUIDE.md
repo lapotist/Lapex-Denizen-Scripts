@@ -8,9 +8,11 @@ steps and simple words. You do not need to know how the code works.
 Use a Minecraft 26.1.2 client. Ask the server owner for the Lapex resource-pack
 ZIP. Turn the pack on before joining.
 
-The pack changes each gun into a low-poly weapon. It also shows models for the
-first eight physical legend devices. The game still works when the pack is off,
-but guns and devices use their vanilla carrot-on-a-stick appearance.
+The pack gives every gun its own low-poly shape and pixel materials. Large guns
+look larger, pistols stay small, and special parts such as twin barrels, drums,
+energy cores, and bow limbs help you tell guns apart. It also shows models for
+the first eight physical legend devices. The game still works when the pack is
+off, but guns and devices use their vanilla carrot-on-a-stick appearance.
 
 ## Your First Gun
 

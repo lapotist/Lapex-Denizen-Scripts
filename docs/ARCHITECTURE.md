@@ -74,7 +74,9 @@ Never solve drift by copying the whole server directory into Git.
 | `lapex_arena_match.dsc` | Session authority, roster snapshots, prep/live phases, elimination, Ring, scoring, restoration, and HUD. |
 | `lapex_arena_loot.dsc` | Atomic script-owned supply/care claims and Arena healing items. |
 | `lapex_arena_bots.dsc` | Session-bound native husk navigation, targeting, gunfire, Ring enforcement, and cleanup. |
-| `build_resource_pack.py` | Authoritative weapon-model map and generated model/texture design. |
+| `build_resource_pack.py` | Stable model-ID map, PNG/JSON generation, device models, and item dispatcher. |
+| `resource_pack_weapons.py` | Authoritative named gun blueprints, four-color surfaces, and class display scales. |
+| `render_weapon_catalog.py` | Dependency-free SVG preview built from the generated cuboids and PNG atlas colors. |
 | `render_kings_canyon.py` | Read-only Anvil map renderer. |
 
 ## Weapon Pipeline
@@ -338,7 +340,8 @@ rounded independently in either loop.
 
 ## Resource-Pack Pipeline
 
-`tools/build_resource_pack.py` produces:
+`tools/build_resource_pack.py` combines the stable item map with the gun visual
+module and produces:
 
 ```text
 custom model data 1001..1032 and 1101..1108
@@ -354,8 +357,11 @@ assets/lapex/textures/item/<weapon-or-device>.png
 ```
 
 Generated models and textures are committed so servers can distribute the pack.
-Change the generator, rebuild, validate, and review the output. Do not hand-edit
-one generated weapon file because the next build will replace it.
+Change `tools/resource_pack_weapons.py` for gun art or
+`tools/build_resource_pack.py` for the pipeline, then rebuild, validate, and
+review the output. Do not hand-edit one generated weapon file because the next
+build will replace it. Gun texture noise is seeded from the gun ID, so reordering
+the registry cannot silently redesign existing assets.
 
 ## Known Architecture Gaps
 

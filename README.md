@@ -321,9 +321,11 @@ without losing their magazine state.
 ## Resource Pack
 
 The included `resource-pack` targets Minecraft 26.1.2 resource format 84.0. It
-contains 32 low-poly weapon models and eight low-poly legend-device models with
-generated palette textures and the needed hand, head, GUI, ground, and fixed
-transforms. Install that directory as a client pack, or use the generated
+contains 32 weapon-specific low-poly models with 32 by 32 procedural material
+atlases, plus eight low-poly legend-device models. Gun-family transforms keep
+pistols readable and reduce large-sniper screen coverage across hand, GUI,
+ground, and fixed views; live crosshair clearance remains a client test. Install
+that directory as a client pack, or use the generated
 `dist/lapex-resource-pack-26.1.2.zip` archive.
 
 Models and textures are reproducible rather than hand-edited binaries:
@@ -331,6 +333,11 @@ Models and textures are reproducible rather than hand-edited binaries:
 ```text
 python3 tools/build_resource_pack.py
 ```
+
+Gun geometry, palettes, and display scale live in
+`tools/resource_pack_weapons.py`. The assets are original Minecraft adaptations;
+video references guide silhouette and material placement but no game frame,
+mesh, logo, or texture is redistributed.
 
 The gameplay scripts still work without the pack, using the vanilla
 carrot-on-a-stick appearance.

@@ -17,8 +17,9 @@ finds input, camera, entity, and visual bugs. Lapex needs both.
 Run from the repository root:
 
 ```text
-python3 -m py_compile tools/build_resource_pack.py tools/render_kings_canyon.py
+python3 -m py_compile tools/build_resource_pack.py tools/resource_pack_weapons.py tools/render_weapon_catalog.py tools/render_kings_canyon.py
 python3 tools/build_resource_pack.py
+python3 tools/render_weapon_catalog.py /tmp/lapex-weapon-catalog.svg
 find resource-pack -type f \( -name '*.json' -o -name 'pack.mcmeta' \) -print0 | xargs -0 -n1 jq -e . >/dev/null
 git diff --check
 ```
@@ -30,6 +31,11 @@ legend devices.
 find resource-pack/assets/lapex/models/item -name '*.json' | wc -l
 find resource-pack/assets/lapex/textures/item -name '*.png' | wc -l
 ```
+
+All gun textures must be 32 by 32. The eight device textures intentionally stay
+16 by 16. The builder also rejects missing blueprints, invalid cuboids,
+unsupported rotations, unsafe element counts, and model-data drift from the 32
+Denizen weapon items.
 
 Before a commit, inspect staged paths. No path may start with `server/` or `dist/`.
 
@@ -154,6 +160,9 @@ damage either outsider.
 - [ ] The client accepts the pack with no compatibility warning on 26.1.2.
 - [ ] `/lapex giveall` shows all 32 models.
 - [ ] No gun looks like the next gun in model-ID order.
+- [ ] Signature shapes remain obvious: Alternator twin barrels, Triple Take
+  rails, Bocek limbs, EVA-8 drum, Mozambique triple bore, Wingman cylinder, and
+  Sheila barrel cluster.
 - [ ] First-person models do not cover the crosshair.
 - [ ] Third-person models sit in the correct hand.
 - [ ] Inventory and dropped-item models fit their space.
