@@ -47,6 +47,7 @@ ex run lapex_arena_match_validate
 ex run lapex_arena_loot_smoke
 ex run lapex_arena_bots_smoke
 ex run lapex_arena_bots_runtime_smoke
+ex run lapex_weapon_damage_runtime_smoke def.shooter:<player[PLAYER_NAME]>
 ex run lapex_deployable_smoke def.owner:<server.offline_players.first> def.location:<world[world].spawn_location.above[4]>
 ex run lapex_dome_geometry_smoke def.center:<world[world].spawn_location.above[2]>
 ex run lapex_charge_smoke def.target:<server.offline_players.first>
@@ -54,6 +55,13 @@ ex run lapex_charge_smoke def.target:<server.offline_players.first>
 
 The deployable and charge smokes need one known player profile. On a new server,
 join once or replace `<server.offline_players.first>` with a known PlayerTag.
+
+The weapon damage runtime smoke refuses active Arena sessions. Wait ten seconds
+after firing, then hold a loaded R-301 and face three clear blocks. The smoke
+places a vanilla husk in that ray, fires one round through the production
+weapon task, verifies health and ammo deltas, and restores the item and camera.
+Read its one-minute result with
+`ex narrate <server.flag[lapex.weapon_damage_smoke_result]||none>`.
 
 Expected lines:
 
@@ -68,6 +76,7 @@ Arena match validation passed: phase contract, score paths, 5v5 spawns, loadout 
 Arena loot smoke passed: six atomic bins, one progressive care box, and standard rewards.
 Arena bot smoke passed: 5v5 spawns, navigation graph, and four registry-backed loadouts.
 Arena bot runtime smoke passed: ten native bots left spawn, completed a guarded slide, acquired cross-team targets, held combat distance, and fired.
+[Lapex] Weapon damage runtime smoke passed: a real bullet damaged a vanilla husk.
 ```
 
 The reload is not successful if the console also shows an invalid event, tag,
@@ -95,7 +104,9 @@ from a static smoke result.
 - [ ] F reloads without swapping the gun away.
 - [ ] Empty and non-empty reload times are different where configured.
 - [ ] Head, body, and leg damage differ correctly.
+- [ ] Outside Arena, a normal zombie or husk loses health from the same gun path.
 - [ ] A successful hit shows accepted Apex `DMG` and lower remaining HP.
+- [ ] Arena HUD text does not erase a confirmed damage number for at least one second.
 - [ ] Absorption shows aqua `SHIELD`; health damage shows red `DMG`.
 - [ ] Armor changes the displayed accepted damage, not the registry request.
 - [ ] Prep, match-end, ally, creative, phased, and protected targets produce no false hit confirm.
@@ -108,6 +119,7 @@ from a static smoke result.
 - [ ] Shotgun pellet patterns and damage are plausible.
 - [ ] Long tracers remain visible near the far impact.
 - [ ] Fast automatic fire does not flood the console.
+- [ ] A bot dying between ray acquisition and damage produces no unspawned-entity error.
 
 ## Stationary Recoil Test
 

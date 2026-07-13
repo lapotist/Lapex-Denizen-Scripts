@@ -13,6 +13,10 @@ lapex_weapon_data:
     # patterns relative to one another while making camera kick readable in
     # Minecraft's wider first-person view.
     recoil_scale: 1.55
+    # Standard player rays expand a living target's hitbox by this many blocks.
+    # Keep this modest: it compensates for Minecraft's narrow mob silhouettes
+    # without steering shots toward an actor outside the crosshair.
+    player_raysize: 0.30
     head_zone: 0.78
     leg_zone: 0.35
     mark_bonus: 1.15

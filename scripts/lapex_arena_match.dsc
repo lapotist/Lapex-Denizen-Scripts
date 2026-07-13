@@ -725,14 +725,15 @@ lapex_arena_cleanup:
 lapex_arena_announce:
     type: task
     debug: false
-    definitions: session|message
+    definitions: session|message|respect_feedback
     script:
     - if <server.flag[lapex.arena.session]||null> != <[session]>:
         - stop
     - foreach <list[red|blue]> as:team:
         - foreach <server.flag[lapex.arena.players.<[team]>]||<list>> as:target:
             - if <[target].is_online> && <[target].flag[lapex.arena_session]||null> == <[session]>:
-                - actionbar "<[message]>" targets:<[target]>
+                - if !<[respect_feedback]||false> || !<[target].has_flag[lapex.damage_feedback_lock]>:
+                    - actionbar "<[message]>" targets:<[target]>
 
 lapex_arena_hud_loop:
     type: task
@@ -746,7 +747,7 @@ lapex_arena_hud_loop:
         - if <[state]> == prep:
             - define suffix " <dark_gray>| <yellow><server.flag[lapex.arena.phase_remaining]||0>s"
         - define message "<red>RED <white><server.flag[lapex.arena.score.red]||0> <dark_gray>| <gold>R<[round]> <[state].to_uppercase><[suffix]> <dark_gray>| <blue>BLUE <white><server.flag[lapex.arena.score.blue]||0>"
-        - run lapex_arena_announce def.session:<[session]> def.message:<[message]>
+        - run lapex_arena_announce def.session:<[session]> def.message:<[message]> def.respect_feedback:true
         - wait 1s
 
 # Legal phase edges are centralized so validation and runtime use one contract.

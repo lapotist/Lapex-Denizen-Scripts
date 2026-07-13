@@ -123,8 +123,12 @@ lapex_validate:
     - if <[recoil_scale]> <= 0 || <[recoil_scale]> > 3:
         - narrate "<red>[Lapex] Shared recoil scale must be greater than 0 and no more than 3: <[recoil_scale]>"
         - define failures <[failures].add[1]>
+    - define player_raysize <script[lapex_weapon_data].data_key[player_raysize]||0>
+    - if <[player_raysize]> <= 0 || <[player_raysize]> > 1.5:
+        - narrate "<red>[Lapex] Player hit tolerance must be greater than 0 and no more than 1.5 blocks: <[player_raysize]>"
+        - define failures <[failures].add[1]>
     - narrate "<yellow>Lapex validation started for <[ids].size> guns..."
-    - foreach <list[lapex_weapon_trigger|lapex_weapon_auto|lapex_weapon_cadence_step|lapex_weapon_recoil_direction|lapex_weapon_health_delta|lapex_weapon_resolve_damage|lapex_weapon_confirm_feedback|lapex_weapon_ads_toggle|lapex_weapon_ads_cancel]> as:required_script:
+    - foreach <list[lapex_weapon_trigger|lapex_weapon_auto|lapex_weapon_fire_once|lapex_weapon_cadence_step|lapex_weapon_recoil_direction|lapex_weapon_health_delta|lapex_weapon_resolve_damage|lapex_weapon_confirm_feedback|lapex_weapon_is_damage_smoke_entity|lapex_weapon_damage_feedback_smoke|lapex_weapon_damage_smoke_readiness|lapex_weapon_damage_runtime_smoke|lapex_weapon_damage_smoke_restore_player|lapex_weapon_damage_smoke_remove_tag|lapex_weapon_ads_toggle|lapex_weapon_ads_cancel]> as:required_script:
         - if <script[<[required_script]>]||null> == null:
             - narrate "<red>[Lapex] Missing weapon input runtime: <[required_script]>"
             - define failures <[failures].add[1]>
@@ -253,7 +257,7 @@ lapex_validate:
         - if <script[<[required_script]>]||null> == null:
             - narrate "<red>[Lapex] Missing deployable runtime: <[required_script]>"
             - define failures <[failures].add[1]>
-    - foreach <list[lapex_arena_data|lapex_arena_build|lapex_arena_validate|lapex_arena_prepare_round|lapex_arena_match_validate|lapex_arena_loot_reset|lapex_arena_loot_smoke|lapex_arena_bots_fill|lapex_arena_bots_cleanup|lapex_arena_bots_smoke]> as:required_script:
+    - foreach <list[lapex_arena_data|lapex_arena_build|lapex_arena_validate|lapex_arena_prepare_round|lapex_arena_match_validate|lapex_arena_loot_reset|lapex_arena_loot_smoke|lapex_arena_native_spawn_husk|lapex_arena_bots_fill|lapex_arena_bots_cleanup|lapex_arena_bots_smoke]> as:required_script:
         - if <script[<[required_script]>]||null> == null:
             - narrate "<red>[Lapex] Missing Arena runtime: <[required_script]>"
             - define failures <[failures].add[1]>

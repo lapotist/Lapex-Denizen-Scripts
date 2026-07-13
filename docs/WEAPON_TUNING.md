@@ -52,6 +52,7 @@ Server-controlled Arena bots use the same cadence procedure.
 | --- | --- |
 | `damage_scale` | Converts Apex health values to Minecraft health. The current value is `0.2`. |
 | `recoil_scale` | Multiplies every weapon's camera kick after its individual values. The current playtest value is `1.55`. |
+| `player_raysize` | Expands ordinary player-shot hitboxes for Minecraft-scale aim tolerance. The current value is `0.30` blocks. Special homing weapons may override it. |
 | `head_zone` | Height fraction at or above which a hit counts as a head hit. |
 | `leg_zone` | Height fraction at or below which a hit counts as a leg hit. |
 | `mark_bonus` | Damage multiplier against a Vantage-marked target for other guns. |

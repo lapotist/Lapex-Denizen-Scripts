@@ -877,13 +877,18 @@ lapex_arena_bot_fire_loop:
         - define target <[bot].flag[lapex.arena_bot_target]||null>
         - if <[target]> == null:
             - repeat stop
+        - if !<[target].is_spawned||false>:
+            - repeat stop
+        - if <[target].health||0> <= 0:
+            - repeat stop
         - define state_target <proc[lapex_legend_combat_player].context[<[target]>]||null>
         - if <[state_target]> == null || !<proc[lapex_arena_bot_available].context[<[state_target]>|<[session]>]> || <[state_target].has_flag[lapex.phased]> || <[state_target].has_flag[lapex.legend_protected]> || <[state_target].has_flag[lapex.pylon_protected]>:
             - repeat stop
+        - define target_location <[target].location>
         - define target_height <[target].height||1.8>
         - define aim_height <script[lapex_arena_data].data_key[bot_tuning.aim_height]||0.52>
-        - define target_center <[target].location.above[<[target_height].mul[<[aim_height]>]>]>
-        - if <[target].world> != <[bot].world> || !<[bot].eye_location.line_of_sight[<[target_center]>]>:
+        - define target_center <[target_location].above[<[target_height].mul[<[aim_height]>]>]>
+        - if <[target_location].world> != <[bot].world> || !<[bot].eye_location.line_of_sight[<[target_center]>]>:
             - repeat stop
         - define id <[bot].flag[lapex.arena_bot_weapon]||r301>
         - define weapon <script[lapex_weapon_data].data_key[weapons.<[id]>]||null>
@@ -923,15 +928,20 @@ lapex_arena_bot_fire_once:
     script:
     - if !<proc[lapex_arena_bot_available].context[<[bot]>|<[session]>]> || <server.flag[lapex.arena.state]||none> != live:
         - stop
+    - if <[target]||null> == null || !<[target].is_spawned||false>:
+        - stop
+    - if <[target].health||0> <= 0:
+        - stop
+    - define requested_target_location <[target].location>
+    - define requested_target_height <[target].height||1.8>
     - define id <[bot].flag[lapex.arena_bot_weapon]||r301>
     - define weapon <script[lapex_weapon_data].data_key[weapons.<[id]>]||null>
     - if <[weapon]> == null || <[bot].flag[lapex.arena_bot_ammo]||0> <= 0:
         - stop
     - flag <[bot]> lapex.arena_bot_ammo:-:1
     - define eye <[bot].eye_location>
-    - define target_height <[target].height||1.8>
     - define aim_height <script[lapex_arena_data].data_key[bot_tuning.aim_height]||0.52>
-    - define target_center <[target].location.above[<[target_height].mul[<[aim_height]>]>]>
+    - define target_center <[requested_target_location].above[<[requested_target_height].mul[<[aim_height]>]>]>
     - define base_aim <[eye].face[<[target_center]>]>
     # A data-driven angular cone and per-bot error scale make close pressure
     # credible while long-range tracers visibly bracket rather than lock on.
@@ -957,6 +967,14 @@ lapex_arena_bot_fire_once:
     - playsound <[eye]> sound:item.crossbow.shoot pitch:<[weapon].get[sound_pitch]||1> volume:0.55
     - if <[hit]> == null:
         - stop
+    # The selected actor can die to another queue between the ray command and
+    # damage processing. Stop before any spawned-only property access.
+    - if !<[hit].is_spawned||false>:
+        - stop
+    - if <[hit].health||0> <= 0:
+        - stop
+    - define hit_location <[hit].location>
+    - define hit_height <[hit].height||1.8>
     - define state_target <proc[lapex_legend_combat_player].context[<[hit]>]||null>
     - define is_deployable <[hit].has_flag[lapex.deployable_kind]>
     - if <[state_target]> == null && !<[is_deployable]>:
@@ -979,7 +997,7 @@ lapex_arena_bot_fire_once:
             - stop
     - define damage <[weapon].get[damage].mul[<script[lapex_weapon_data].data_key[damage_scale]>]>
     - if !<[is_deployable]>:
-        - define height_fraction <[impact].y.sub[<[hit].location.y>].div[<[hit].height||1.8>]>
+        - define height_fraction <[impact].y.sub[<[hit_location].y>].div[<[hit_height]>]>
         - if <[height_fraction]> >= <script[lapex_weapon_data].data_key[head_zone]>:
             - define damage <[damage].mul[<[weapon].get[head_mult]>]>
         - else if <[height_fraction]> <= <script[lapex_weapon_data].data_key[leg_zone]>:
@@ -987,6 +1005,10 @@ lapex_arena_bot_fire_once:
     - define before_health <[state_target].health||0>
     - define before_absorption <[state_target].absorption_health||0>
     - define was_eliminated <[state_target].has_flag[lapex.arena_eliminated]||false>
+    - if !<[hit].is_spawned||false>:
+        - stop
+    - if <[hit].health||0> <= 0:
+        - stop
     - define old_velocity <[hit].velocity>
     - define old_no_damage <[hit].no_damage_duration||0s>
     - adjust <[hit]> no_damage_duration:0s

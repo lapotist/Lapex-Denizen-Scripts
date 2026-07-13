@@ -116,8 +116,14 @@ Important contracts:
 - A delayed queue rechecks the held item ID before changing ammo or state.
 - Recoil changes yaw and pitch only. It never teleports or pushes the shooter.
 - `recoil_scale` multiplies presentation kick after per-weapon values and patterns.
+- `player_raysize` expands living-target hitboxes by `0.30` blocks for
+  player-fired rays; a special weapon's `homing_raysize` remains an override.
 - Target velocity is restored after scripted damage to avoid unwanted knockback.
+- A ray target is checked and snapshotted before zone math, then checked again
+  immediately before damage so another queue cannot leave a stale entity tag.
 - Hit feedback and combat telemetry require a positive authoritative HP delta.
+- Confirmed damage holds `damage_feedback_lock` for 25 ticks so the Arena HUD
+  cannot erase the accepted damage and remaining-HP display immediately.
 - A short `lapex.damage_transaction` source flag prevents generic event telemetry
   from recording a hit before the weapon-owned comparison completes.
 - Crypto body pellets preserve source/weapon metadata and confirm from a health
@@ -216,7 +222,7 @@ Flags act like internal APIs between scripts.
 | Weapon transaction | `trigger`, `auto_probe`, `auto_loop`, `fire_phase`, `recoil_shot`, `spinup`, `spinup_ready`, `action_lock`, `burst`, `charging`, `reloading`, `secondary` | Short action state. |
 | View | `ads` | Toggled for the currently held gun. |
 | Shared combat | `legend_protected`, `pylon_protected`, `phased`, `legend_silenced`, `tempest`, `amped_cover` | Timed ability state. |
-| Combat telemetry | `last_target`, `last_attacker`, `last_shot_location`, `last_damage_location`, `low_health`, `threatened_by` | Short evidence for passives. |
+| Combat telemetry | `last_target`, `last_attacker`, `last_shot_location`, `last_damage_location`, `low_health`, `threatened_by`, `damage_feedback_lock` | Short evidence for passives and readable confirmed damage. |
 | Crypto session | `crypto_active`, `crypto_origin`, `crypto_gamemode`, body/drone entity, body chunk, drone health | From launch through one cleanup path. |
 | Deployable session | owner `deployable.*`, `deployable_sessions.*`; entity owner/kind/session/health/state; server `deployable_index.*` | Placement through cleanup or stale reconciliation. |
 | Mobility | `octane_launch_token`, `octane_double_ready`, `octane_fall_safe`, `nitro_token`, `slide_source`, `ash_transit_active`, `ash_invisibility` | One ride, slide, landing, or transit; always tokenized and cleanup-owned. |

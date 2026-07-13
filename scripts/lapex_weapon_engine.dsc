@@ -119,6 +119,28 @@ lapex_weapon_events:
         on scripts loaded:
         - foreach <server.online_players> as:target:
             - run lapex_weapon_ads_cancel def.target:<[target]>
+        # A hard stop during the opt-in damage smoke can outlive its delayed
+        # watchdog. Remove only its uniquely prefixed native test entities.
+        - foreach <server.worlds> as:smoke_world:
+            - foreach <[smoke_world].entities> as:candidate:
+                - if <proc[lapex_weapon_is_damage_smoke_entity].context[<[candidate]>]>:
+                    - remove <[candidate]>
+        - flag server lapex.weapon_damage_smoke_active:!
+
+        on chunk loads entities:
+        - foreach <context.entities> as:candidate:
+            - if <proc[lapex_weapon_is_damage_smoke_entity].context[<[candidate]>]>:
+                - remove <[candidate]>
+
+lapex_weapon_is_damage_smoke_entity:
+    type: procedure
+    debug: false
+    definitions: target
+    script:
+    - foreach <[target].scoreboard_tags> as:scoreboard_tag:
+        - if <[scoreboard_tag].starts_with[lapex_weapon_damage_smoke_]>:
+            - determine true
+    - determine false
 
 lapex_weapon_reset_transient:
     type: task
@@ -445,7 +467,13 @@ lapex_weapon_fire_once:
         - stop
     - define shooter_arena <player.flag[lapex.arena_session]||null>
     - if <[shooter_arena]> != null:
-        - if <server.flag[lapex.arena.session]||null> != <[shooter_arena]> || <server.flag[lapex.arena.state]||none> != live || <player.has_flag[lapex.arena_eliminated]>:
+        - if <server.flag[lapex.arena.session]||null> != <[shooter_arena]>:
+            - stop
+        - if <player.has_flag[lapex.arena_eliminated]>:
+            - actionbar "<red>ELIMINATED <dark_gray>| <gray>Wait for the next round"
+            - stop
+        - if <server.flag[lapex.arena.state]||none> != live:
+            - actionbar "<yellow>WEAPONS LOCKED <dark_gray>| <gray>The round is not live"
             - stop
     - define registry <script[lapex_weapon_data].data_key[weapons]>
     - define weapon <[registry].get[<[id]>]>
@@ -518,7 +546,7 @@ lapex_weapon_fire_once:
     - if <[is_ads]>:
         - define pellet_spread <[pellet_spread].mul[0.45]>
     - define range <[weapon].get[range]>
-    - define raysize <[weapon].get[homing_raysize]||0.18>
+    - define raysize <[weapon].get[homing_raysize]||<script[lapex_weapon_data].data_key[player_raysize]||0.30>>
     - define muzzle <[eye].forward[0.8].right[0.22].below[0.16]>
     - flag player lapex.last_shot_location:<[muzzle]> expire:10s
     - playeffect effect:small_flame at:<[muzzle]> offset:0.03 quantity:2 data:0.01
@@ -585,6 +613,15 @@ lapex_weapon_fire_once:
                 - playeffect effect:smoke at:<[impact]> offset:0.03 quantity:2 data:0.01
             - repeat next
 
+        # Another combat queue may eliminate and remove a ray target in the
+        # same tick. Never read live entity properties from that stale tag.
+        - if !<[target].is_spawned||false>:
+            - repeat next
+        - if <[target].health||0> <= 0:
+            - repeat next
+        - define target_location <[target].location>
+        - define target_height <[target].height||1.8>
+
         # A Crypto mannequin is the physical ray target, but combat state
         # belongs to the real player. Ordinary mobs and deployables keep their
         # own state because they have no canonical player mapping.
@@ -624,7 +661,7 @@ lapex_weapon_fire_once:
         - define damage <[weapon].get[damage].mul[<script[lapex_weapon_data].data_key[damage_scale]>]>
         - define zone body
         - if !<[is_deployable]>:
-            - define height_fraction <[impact].y.sub[<[target].location.y>].div[<[target].height||1.8>]>
+            - define height_fraction <[impact].y.sub[<[target_location].y>].div[<[target_height]>]>
             - if <[height_fraction]> >= <script[lapex_weapon_data].data_key[head_zone]>:
                 - define damage <[damage].mul[<[weapon].get[head_mult]>]>
                 - define zone head
@@ -681,6 +718,12 @@ lapex_weapon_fire_once:
         - else if <[target].has_flag[lapex.crypto_drone_owner]>:
             - define damage_state crypto_drone
             - define before_virtual <[crypto_owner].flag[lapex.crypto_drone_health]||0>
+        # Damage calculation above is intentionally pure. Revalidate immediately
+        # before the commands that require a spawned physical entity.
+        - if !<[target].is_spawned||false>:
+            - repeat next
+        - if <[target].health||0> <= 0:
+            - repeat next
         - define old_velocity <[target].velocity>
         - define old_no_damage <[target].no_damage_duration||0s>
         # Clear native immunity before the request. Clearing only afterward lets
@@ -757,7 +800,7 @@ lapex_weapon_fire_once:
             - define max_apex_health <[state_target].health_max.div[<script[lapex_weapon_data].data_key[damage_scale]||0.2>]||100>
             - if <[remaining].div[<[max_apex_health]>]> <= 0.4:
                 - flag <[state_target]> lapex.low_health expire:6s
-        - if !<[is_deployable]> && <player.flag[lapex.legend]||bangalore> == mad_maggie:
+        - if !<[is_deployable]> && <player.flag[lapex.legend]||bangalore> == mad_maggie && !<player.has_flag[lapex.weapon_damage_smoke_token]>:
             - flag <[state_target]> lapex.maggie_mark:<player> expire:3s
             - run lapex_legend_private_outline def.viewer:<player> def.targets:<list[<[target]>]> def.duration:3s
         - define confirmed_damage <[confirmed_damage].add[<[applied_damage]>]>
@@ -771,19 +814,19 @@ lapex_weapon_fire_once:
 
         - if !<[is_deployable]> && <[id]> == a13_sentry:
             - flag <[state_target]> lapex.vantage_mark:<player> expire:10s
-            - playeffect effect:dust at:<[target].location.above[<[target].height||1.8>]> offset:0.2 quantity:8 special_data:[size=0.7;color=255,55,75]
+            - playeffect effect:dust at:<[target_location].above[<[target_height]>]> offset:0.2 quantity:8 special_data:[size=0.7;color=255,55,75]
         - if !<[is_deployable]> && <[id]> == whistler:
             - if !<[state_target].has_flag[lapex.whistler_heat]>:
                 - flag <[state_target]> lapex.whistler_heat:1 expire:15s
                 - flag <[state_target]> lapex.whistler_source:<player> expire:15s
-                - playeffect effect:electric_spark at:<[target].location.above[1]> offset:0.35 quantity:12
+                - playeffect effect:electric_spark at:<[target_location].above[1]> offset:0.35 quantity:12
                 - actionbar "<gold>Whistler <red>LOCKED"
 
     - if <[confirmed_damage]> > 0:
         - if <[confirmed_targets].size> > 1:
             - define confirmed_remaining null
         - run lapex_weapon_confirm_feedback def.shooter:<player> def.weapon_id:<[id]> def.ammo:<[ammo]> def.max_mag:<[max_mag]> def.damage:<[confirmed_damage]> def.health_damage:<[confirmed_health_damage]> def.shield_damage:<[confirmed_shield_damage]> def.remaining:<[confirmed_remaining]> def.headshot:<[confirmed_headshot]> def.impact:<[confirmed_impact]>
-    - else:
+    - else if !<player.has_flag[lapex.damage_feedback_lock]>:
         - actionbar "<gold><[weapon].get[name]> <white><[ammo]><gray>/<[max_mag]>"
     - if <[ammo]> <= 0 && <[weapon].get[auto_reload]||false>:
         - run lapex_weapon_reload def.id:<[id]>
@@ -819,6 +862,9 @@ lapex_weapon_confirm_feedback:
     - define remaining_text ""
     - if <[remaining]||null> != null:
         - define remaining_text " <dark_gray>| <gray><[remaining].round> HP"
+    # The Arena HUD also owns the actionbar. This short lease keeps the next HUD
+    # tick from erasing a damage number before the shooter can read it.
+    - flag <[shooter]> lapex.damage_feedback_lock expire:25t
     - actionbar "<gold><[weapon].get[name]> <white><[ammo]><gray>/<[max_mag]> <dark_gray>| <[damage_text]><[remaining_text]>" targets:<[shooter]>
 
 # Pure calculation smoke. Runtime combat tests cover event cancellation and
@@ -854,6 +900,175 @@ lapex_weapon_damage_feedback_smoke:
         - narrate "<green>Lapex damage feedback smoke passed: health, shield, remaining HP, Arena elimination, and zero-delta cancellation."
     - else:
         - narrate "<red>Lapex damage feedback smoke failed with <[failures]> issue(s)."
+
+# Opt-in integration smoke for the real player weapon path. It deliberately
+# uses an ordinary husk, proving that non-Arena mobs share ray, damage, ammo,
+# and confirmation behavior. The caller's item and camera are restored.
+lapex_weapon_damage_smoke_readiness:
+    type: procedure
+    debug: false
+    definitions: shooter
+    script:
+    - if <[shooter]||null> == null || !<[shooter].is_online||false>:
+        - determine offline
+    - if <server.has_flag[lapex.arena.session]> || <[shooter].has_flag[lapex.arena_session]>:
+        - determine arena
+    - if <[shooter].has_flag[lapex.crypto_active]> || <[shooter].has_flag[lapex.phased]> || <[shooter].has_flag[lapex.reloading]> || <[shooter].has_flag[lapex.trigger]> || <[shooter].has_flag[lapex.auto_loop]> || <[shooter].has_flag[lapex.action_lock]> || <[shooter].has_flag[lapex.tempest]> || <[shooter].has_flag[lapex.whistler_heat]>:
+        - determine busy
+    - if <[shooter].has_flag[lapex.last_target]> || <[shooter].has_flag[lapex.last_shot_location]> || <[shooter].has_flag[lapex.recoil_shot.r301]> || <[shooter].has_flag[lapex.damage_feedback_lock]>:
+        - determine recent_shot
+    - determine ready
+
+lapex_weapon_damage_runtime_smoke:
+    type: task
+    debug: false
+    definitions: shooter
+    script:
+    - flag server lapex.weapon_damage_smoke_result:!
+    - if <[shooter]||null> == null || !<[shooter].is_online||false>:
+        - narrate "<red>[Lapex] Weapon damage smoke requires an online shooter."
+        - flag server lapex.weapon_damage_smoke_result:missing_shooter expire:1m
+        - stop
+    # Console-started tasks have no player context until the remaining queue
+    # entries are explicitly linked to the requested shooter.
+    - adjust <queue> linked_player:<[shooter]>
+    - if !<player.is_online||false>:
+        - narrate "<red>[Lapex] Weapon damage smoke could not link its shooter."
+        - flag server lapex.weapon_damage_smoke_result:link_failed expire:1m
+        - stop
+    - define readiness <proc[lapex_weapon_damage_smoke_readiness].context[<player>]>
+    - if <[readiness]> == arena:
+        - narrate "<red>[Lapex] Weapon damage smoke refused: an Arena session is active."
+        - flag server lapex.weapon_damage_smoke_result:refused_arena expire:1m
+        - stop
+    - if <[readiness]> == busy:
+        - narrate "<red>[Lapex] Finish the current weapon or legend action before this smoke."
+        - flag server lapex.weapon_damage_smoke_result:refused_busy expire:1m
+        - stop
+    - if <[readiness]> == recent_shot:
+        - narrate "<red>[Lapex] Wait ten seconds after your last shot before this smoke."
+        - flag server lapex.weapon_damage_smoke_result:refused_recent_shot expire:1m
+        - stop
+    - if <server.has_flag[lapex.weapon_damage_smoke_active]>:
+        - narrate "<red>[Lapex] Weapon damage smoke is already running."
+        - flag server lapex.weapon_damage_smoke_result:refused_active expire:1m
+        - stop
+    - define token <util.random_uuid>
+    - define spawn_tag lapex_weapon_damage_smoke_<[token]>
+    - define world_name <player.world.name>
+    - flag server lapex.weapon_damage_smoke_active:<[token]> expire:20s
+    # Native summon and Denizen binding are separate operations. This watchdog
+    # removes the scoreboard-tagged husk even if binding fails midway.
+    - run lapex_weapon_damage_smoke_remove_tag def.world_name:<[world_name]> def.spawn_tag:<[spawn_tag]> def.token:<[token]> delay:10s
+    - ~run lapex_arena_native_spawn_husk def.location:<player.location.above[3]> def.tag:<[spawn_tag]>
+    - define dummy <server.flag[lapex.arena.native_spawn_result.<[spawn_tag]>]||null>
+    - flag server lapex.arena.native_spawn_result.<[spawn_tag]>:!
+    - if <[dummy]> == null || !<[dummy].is_spawned||false>:
+        - narrate "<red>[Lapex] Weapon damage smoke could not create its test mob."
+        - flag server lapex.weapon_damage_smoke_result:spawn_failed expire:1m
+        - flag server lapex.weapon_damage_smoke_active:!
+        - stop
+    - define readiness <proc[lapex_weapon_damage_smoke_readiness].context[<player>]>
+    - if <[readiness]> != ready:
+        - remove <[dummy]>
+        - flag server lapex.weapon_damage_smoke_result:precondition_changed_<[readiness]> expire:1m
+        - flag server lapex.weapon_damage_smoke_active:!
+        - if <player.is_online||false>:
+            - narrate "<red>[Lapex] Weapon damage smoke stopped because player state changed."
+        - stop
+    - if <player.world.name> != <[world_name]>:
+        - remove <[dummy]>
+        - flag server lapex.weapon_damage_smoke_result:precondition_changed_world expire:1m
+        - flag server lapex.weapon_damage_smoke_active:!
+        - narrate "<red>[Lapex] Weapon damage smoke stopped because the player changed worlds."
+        - stop
+    - define aim <player.eye_location>
+    - define target_location <[aim].forward[3].below[0.9]>
+    - define block_impact <[aim].ray_trace[range=3;default=air]>
+    - if <[aim].distance[<[block_impact]>]> < 2.8 || <[target_location].material.is_solid> || <[target_location].above.material.is_solid> || <[target_location].above[2].material.is_solid>:
+        - remove <[dummy]>
+        - narrate "<red>[Lapex] Weapon damage smoke needs three clear blocks in front of you."
+        - flag server lapex.weapon_damage_smoke_result:no_clear_ray expire:1m
+        - flag server lapex.weapon_damage_smoke_active:!
+        - stop
+    - if <player.item_in_hand.flag[lapex.id]||null> != r301 || <player.item_in_hand.flag[lapex.ammo]||0> <= 0:
+        - remove <[dummy]>
+        - narrate "<red>[Lapex] Hold a loaded R-301 before running the weapon damage smoke."
+        - flag server lapex.weapon_damage_smoke_result:needs_r301 expire:1m
+        - flag server lapex.weapon_damage_smoke_active:!
+        - stop
+    - define old_slot <player.held_item_slot>
+    - define old_item <player.item_in_hand>
+    - define old_view <player.eye_location>
+    - flag player lapex.weapon_damage_smoke_token:<[token]> expire:20s
+    - run lapex_weapon_damage_smoke_restore_player def.shooter:<player> def.token:<[token]> def.old_slot:<[old_slot]> def.old_item:<[old_item]> def.old_view:<[old_view]> delay:5s
+    - adjust <[dummy]> has_ai:false
+    - adjust <[dummy]> gravity:false
+    - adjust <[dummy]> silent:true
+    - adjust <[dummy]> health:20
+    - flag <[dummy]> lapex.team:weapon_damage_smoke_<util.random_uuid>
+    - teleport <[dummy]> <[target_location]>
+    - look <player> <[dummy].location.above[0.9]>
+    - define smoke_ray <player.eye_location.ray_trace_target[range=4;entities=living;ignore=<player>;raysize=<script[lapex_weapon_data].data_key[player_raysize]||0.30>]||null>
+    - if <[smoke_ray]> != <[dummy]>:
+        - remove <[dummy]>
+        - ~run lapex_weapon_damage_smoke_restore_player def.shooter:<player> def.token:<[token]> def.old_slot:<[old_slot]> def.old_item:<[old_item]> def.old_view:<[old_view]>
+        - flag server lapex.weapon_damage_smoke_result:obstructed_ray expire:1m
+        - flag server lapex.weapon_damage_smoke_active:!
+        - narrate "<red>[Lapex] Weapon damage smoke stopped because another entity blocked the test ray."
+        - stop
+    - define before_health <[dummy].health>
+    - define before_ammo <player.item_in_hand.flag[lapex.ammo]||0>
+    - ~run lapex_weapon_fire_once def.id:r301
+    - define after_health <[dummy].health||0>
+    - define after_ammo <player.item_in_hand.flag[lapex.ammo]||0>
+    - define passed false
+    - if <[after_health]> < <[before_health]> && <[after_ammo]> == <[before_ammo].sub[1]> && <player.flag[lapex.last_target]||null> == <[dummy]>:
+        - define passed true
+    - if <[dummy].is_spawned||false>:
+        - remove <[dummy]>
+    - ~run lapex_weapon_damage_smoke_restore_player def.shooter:<player> def.token:<[token]> def.old_slot:<[old_slot]> def.old_item:<[old_item]> def.old_view:<[old_view]>
+    - flag server lapex.weapon_damage_smoke_active:!
+    - if <[passed]>:
+        - flag server lapex.weapon_damage_smoke_result:passed expire:1m
+        - narrate "<green>[Lapex] Weapon damage runtime smoke passed: a real bullet damaged a vanilla husk."
+    - else:
+        - flag server lapex.weapon_damage_smoke_result:failed expire:1m
+        - narrate "<red>[Lapex] Weapon damage runtime smoke failed; item, camera, and test mob were restored."
+
+lapex_weapon_damage_smoke_restore_player:
+    type: task
+    debug: false
+    definitions: shooter|token|old_slot|old_item|old_view
+    script:
+    - if <[shooter].flag[lapex.weapon_damage_smoke_token]||null> != <[token]>:
+        - stop
+    - if !<[shooter].is_online||false>:
+        # The smoke never swaps weapons, so an interrupted offline restore can
+        # cost at most its one test round. Avoid unsafe inventory mechanisms.
+        - flag <[shooter]> lapex.weapon_damage_smoke_token:!
+        - stop
+    - inventory set destination:<[shooter].inventory> origin:<[old_item]> slot:<[old_slot]>
+    - adjust <[shooter]> item_slot:<[old_slot]>
+    - look <[shooter]> yaw:<[old_view].yaw> pitch:<[old_view].pitch>
+    - flag <[shooter]> lapex.last_target:!
+    - flag <[shooter]> lapex.last_shot_location:!
+    - flag <[shooter]> lapex.recoil_shot.r301:!
+    - flag <[shooter]> lapex.damage_feedback_lock:!
+    - flag <[shooter]> lapex.weapon_damage_smoke_token:!
+
+lapex_weapon_damage_smoke_remove_tag:
+    type: task
+    debug: false
+    definitions: world_name|spawn_tag|token
+    script:
+    - define smoke_world <world[<[world_name]>]||null>
+    - if <[smoke_world]> != null:
+        - foreach <[smoke_world].entities> as:candidate:
+            - if <[candidate].scoreboard_tags.contains[<[spawn_tag]>]>:
+                - remove <[candidate]>
+    - if <server.flag[lapex.weapon_damage_smoke_active]||null> == <[token]>:
+        - flag server lapex.weapon_damage_smoke_active:!
 
 lapex_weapon_render_tracer:
     type: task
@@ -994,15 +1209,17 @@ lapex_whistler_mine:
             - define target <[possible]>
             - define target_state <[possible_state]>
             - foreach stop
-        - if <[target]> != null:
+        - if <[target]> != null && <[target].is_spawned||false> && <[target].health||0> > 0:
+            - define target_effect_location <[target].location.above[1]>
             - flag <[target_state]> lapex.whistler_heat:1 expire:15s
             - flag <[target_state]> lapex.whistler_source:<player> expire:15s
             - define damage <script[lapex_weapon_data].data_key[whistler_trap_damage].mul[<script[lapex_weapon_data].data_key[damage_scale]>]>
             - adjust <[target]> no_damage_duration:0s
             - hurt <[damage]> <[target]> cause:PROJECTILE source:<player>
-            - adjust <[target]> no_damage_duration:0s
-            - playeffect effect:electric_spark at:<[target].location.above[1]> offset:0.35 quantity:12
-            - playsound <[target]> sound:block.conduit.activate pitch:1.8 volume:0.65
+            - if <[target].is_spawned||false>:
+                - adjust <[target]> no_damage_duration:0s
+            - playeffect effect:electric_spark at:<[target_effect_location]> offset:0.35 quantity:12
+            - playsound <[target_effect_location]> sound:block.conduit.activate pitch:1.8 volume:0.65
             - stop
         - wait 4t
 
@@ -1048,21 +1265,27 @@ lapex_hemlok_breach_charge:
     - playeffect effect:large_smoke at:<[impact]> offset:<[weapon].get[breach_radius].div[3]> quantity:24
     - playsound <[impact]> sound:entity.generic.explode pitch:1.15 volume:1.1
     - foreach <[impact].find_entities[living].within[<[weapon].get[breach_radius]>].exclude[<player>]> as:target:
+        - if !<[target].is_spawned||false>:
+            - foreach next
+        - if <[target].health||0> <= 0:
+            - foreach next
         - define target_state <[target]>
         - define combat_target <proc[lapex_legend_combat_player].context[<[target]>]||null>
         - if <[combat_target]> != null:
             - define target_state <[combat_target]>
         - if <proc[lapex_legend_is_ally].context[<player>|<[target]>]> || <[target_state].has_flag[lapex.legend_protected]> || <[target_state].has_flag[lapex.pylon_protected]> || <[target_state].has_flag[lapex.phased]>:
             - foreach next
+        - define target_location <[target].location>
         - define target_height <[target].height||1.8>
-        - define target_center <[target].location.above[<[target_height].div[2]>]>
+        - define target_center <[target_location].above[<[target_height].div[2]>]>
         - if <proc[lapex_dome_trace_intersection].context[<[damage_origin]>|<[target_center]>]||null> != null:
             - foreach next
-        - define falloff <element[1].sub[<[target].location.distance[<[impact]>].div[<[weapon].get[breach_radius]>].mul[0.6]>]>
+        - define falloff <element[1].sub[<[target_location].distance[<[impact]>].div[<[weapon].get[breach_radius]>].mul[0.6]>]>
         - define damage <[weapon].get[breach_damage].mul[<[falloff]>].mul[<script[lapex_weapon_data].data_key[damage_scale]>]>
         - adjust <[target]> no_damage_duration:0s
         - hurt <[damage]> <[target]> cause:PROJECTILE source:<player>
-        - adjust <[target]> no_damage_duration:0s
+        - if <[target].is_spawned||false>:
+            - adjust <[target]> no_damage_duration:0s
     - flag player lapex.secondary:!
 
 lapex_sentinel_amp:

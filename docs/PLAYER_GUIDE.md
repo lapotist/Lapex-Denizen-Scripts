@@ -49,6 +49,7 @@ Point at a living target and right-click. Keep holding right-click for an
 automatic gun.
 
 - The gun shoots from the camera.
+- Guns can hurt ordinary living Minecraft mobs, such as zombies and husks.
 - A colored tracer shows the shot path.
 - A hit near the head deals more damage.
 - A hit near the legs deals less damage.
@@ -278,7 +279,8 @@ An operator starts the match with:
 
 You wait behind the starting area for 30 seconds. You may look around, but guns
 and powers stay locked until the round starts. If you are eliminated, you watch
-the rest of that round and return for the next one.
+the rest of that round and return for the next one. Trying to fire then shows an
+`ELIMINATED` message instead of spending ammo.
 
 Right-click a barrel to take one reward. A barrel may help two players each
 round. The yellow box on the high middle platform gives stronger guns to three
