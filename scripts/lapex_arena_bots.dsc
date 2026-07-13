@@ -20,6 +20,24 @@ lapex_arena_bot_events:
             - if <server.flag[lapex.arena.bot_smoke_session]||null> != <[session]>:
                 - run lapex_arena_check_round def.session:<[session]> delay:1t
 
+        # A husk's built-in target selector would otherwise race the scripted
+        # gun AI and make it sprint toward any nearby player. Only targets
+        # deliberately selected by the Arena controller may drive native
+        # pursuit. The controller still cancels pursuit at firing distance.
+        on entity targets entity:
+        - define bot <context.entity>
+        - if !<[bot].has_flag[lapex.arena_bot]>:
+            - stop
+        - define controlled_target <[bot].flag[lapex.arena_bot_controlled_target]||null>
+        - define requested_target <context.target||null>
+        # Bukkit also fires this event when a target is cleared. Never cancel
+        # that transition or an old chase can survive after the controller
+        # deliberately calls `attack cancel`.
+        - if <[requested_target]> == null:
+            - stop
+        - if <[controlled_target]> == null || <[requested_target]> != <[controlled_target]>:
+            - determine cancelled
+
         # Native punches and arrows do not pass through the Lapex hitscan ally
         # gate. Protect allied bots here while leaving environmental Ring and
         # fall damage intact.
@@ -299,9 +317,13 @@ lapex_arena_bot_enforce_ring:
     - if !<[outside]>:
         - stop
     - define damage <[arena_world].border_damage.div[5].max[0.5]>
+    # Capture the effect position before damage. The hit can kill and despawn
+    # the bot, after which reading its live location is invalid in Denizen.
+    - define effect_location <[bot].location.above[1]>
     - hurt <[damage]> <[bot]> cause:WORLD_BORDER
-    - adjust <[bot]> no_damage_duration:0s
-    - playeffect effect:damage_indicator at:<[bot].location.above[1]> offset:0.25 quantity:3 visibility:96
+    - if <[bot].is_spawned||false>:
+        - adjust <[bot]> no_damage_duration:0s
+    - playeffect effect:damage_indicator at:<[effect_location]> offset:0.25 quantity:3 visibility:96
 
 lapex_arena_bot_decide:
     type: task
@@ -312,33 +334,64 @@ lapex_arena_bot_decide:
         - stop
     - define target <proc[lapex_arena_bot_choose_target].context[<[bot]>|<[session]>]||null>
     - if <[target]> == null:
-        - if <[bot].has_flag[lapex.arena_bot_melee]>:
+        - if <[bot].has_flag[lapex.arena_bot_controlled_target]>:
             - attack <[bot]> cancel
-            - flag <[bot]> lapex.arena_bot_melee:!
+            - flag <[bot]> lapex.arena_bot_moving:!
+        - flag <[bot]> lapex.arena_bot_controlled_target:!
+        - flag <[bot]> lapex.arena_bot_melee:!
         - flag <[bot]> lapex.arena_bot_target:!
         - run lapex_arena_bot_navigate def.bot:<[bot]> def.session:<[session]>
         - stop
+    # A newly visible enemy supersedes a patrol destination. Stop the one active
+    # walk before selecting chase/hold behavior so its speed-restoration
+    # callback cannot overlap another path.
+    - if <[bot].has_flag[lapex.arena_bot_nav_goal]>:
+        - walk <[bot]> stop
+        - flag <[bot]> lapex.arena_bot_nav_goal:!
+        - flag <[bot]> lapex.arena_bot_nav_lock:!
+        - flag <[bot]> lapex.arena_bot_moving:!
     - flag <[bot]> lapex.arena_bot_target:<[target]> expire:2s
     - define target_height <[target].height||1.8>
     - define target_center <[target].location.above[<[target_height].mul[0.65]>]>
     - look <[bot]> <[target_center]> duration:5t
     - define distance <[bot].location.distance[<[target].location>]>
     - if <[distance]> <= 2.6:
-        - if !<[bot].has_flag[lapex.arena_bot_melee]>:
+        - if <[bot].flag[lapex.arena_bot_controlled_target]||null> != <[target]> || !<[bot].has_flag[lapex.arena_bot_melee]>:
+            - flag <[bot]> lapex.arena_bot_controlled_target:<[target]>
             - flag <[bot]> lapex.arena_bot_melee
             - attack <[bot]> target:<[target]>
         - stop
     - if <[bot].has_flag[lapex.arena_bot_melee]>:
         - attack <[bot]> cancel
         - flag <[bot]> lapex.arena_bot_melee:!
-    # Pathing is an aid, not a firing dependency. If navigation stalls the bot
-    # remains a stationary visible shooter instead of teleporting or freezing
-    # its combat queue.
-    - if <[distance]> > 14 && !<[bot].has_flag[lapex.arena_bot_stationary]>:
-        - walk <[bot]> <[target].location> speed:1.05 lookat:<[target_center]>
-        - flag <[bot]> lapex.arena_bot_moving expire:2s
-        - run lapex_arena_bot_track_movement def.bot:<[bot]> def.session:<[session]>
-    - else if <[distance]> < 7:
+        - flag <[bot]> lapex.arena_bot_controlled_target:!
+    # Native pursuit tracks a moving actor without issuing a fresh path command
+    # five times per second. Two different thresholds form a stable ranged
+    # combat band: chase outside 18 blocks, then hold and shoot inside 12.
+    - define chase_start <script[lapex_arena_data].data_key[bot_tuning.chase_start_distance]||18>
+    - define chase_stop <script[lapex_arena_data].data_key[bot_tuning.chase_stop_distance]||12>
+    - define controlled_target <[bot].flag[lapex.arena_bot_controlled_target]||null>
+    - if <[controlled_target]> != null && <[controlled_target]> != <[target]>:
+        - attack <[bot]> cancel
+        - flag <[bot]> lapex.arena_bot_controlled_target:!
+        - flag <[bot]> lapex.arena_bot_moving:!
+    - define should_chase false
+    - if <[distance]> > <[chase_start]>:
+        - define should_chase true
+    - else if <[distance]> >= <[chase_stop]> && <[bot].flag[lapex.arena_bot_controlled_target]||null> == <[target]>:
+        - define should_chase true
+    - if <[should_chase]> && !<[bot].has_flag[lapex.arena_bot_stationary]>:
+        # A native goal may clear its target after a failed path. Compare both
+        # controller intent and the mob's real target so pursuit self-recovers.
+        - if <[bot].flag[lapex.arena_bot_controlled_target]||null> != <[target]> || <[bot].target||null> != <[target]>:
+            - walk <[bot]> stop
+            - flag <[bot]> lapex.arena_bot_controlled_target:<[target]>
+            - attack <[bot]> target:<[target]>
+            - flag <[bot]> lapex.arena_bot_moving
+    - else if <[distance]> < <[chase_stop]>:
+        - if <[bot].has_flag[lapex.arena_bot_controlled_target]>:
+            - attack <[bot]> cancel
+            - flag <[bot]> lapex.arena_bot_controlled_target:!
         - walk <[bot]> stop
         - flag <[bot]> lapex.arena_bot_moving:!
     - if !<[bot].has_flag[lapex.arena_bot_firing]>:
@@ -360,6 +413,8 @@ lapex_arena_bot_track_movement:
         - walk <[bot]> stop
         - flag <[bot]> lapex.arena_bot_stationary expire:2s
         - flag <[bot]> lapex.arena_bot_moving:!
+        - flag <[bot]> lapex.arena_bot_nav_goal:!
+        - flag <[bot]> lapex.arena_bot_nav_lock:!
 
 # With no visible enemy, follow one edge of the authored navigation graph. This
 # keeps goals local and avoids expensive all-map paths for native mobs.
@@ -368,8 +423,19 @@ lapex_arena_bot_navigate:
     debug: false
     definitions: bot|session
     script:
-    - if <[bot].has_flag[lapex.arena_bot_nav_lock]> || <[bot].has_flag[lapex.arena_bot_stationary]>:
+    - if <[bot].has_flag[lapex.arena_bot_stationary]>:
         - stop
+    # One native path may remain active for up to the longest authored graph
+    # edge. Reaching its saved goal clears the lock immediately; otherwise the
+    # controller leaves it alone instead of restarting it every decision tick.
+    - if <[bot].has_flag[lapex.arena_bot_nav_lock]>:
+        - define active_goal <[bot].flag[lapex.arena_bot_nav_goal]||null>
+        - if <[active_goal]> == null || <[bot].location.distance[<[active_goal]>]> > 2:
+            - stop
+        - walk <[bot]> stop
+        - flag <[bot]> lapex.arena_bot_nav_lock:!
+        - flag <[bot]> lapex.arena_bot_nav_goal:!
+        - flag <[bot]> lapex.arena_bot_moving:!
     - define nodes <script[lapex_arena_data].data_key[navigation_nodes]||<map>>
     - if <[nodes].is_empty>:
         - stop
@@ -400,9 +466,40 @@ lapex_arena_bot_navigate:
         - define next <[choices].random>
     - define goal <location[<[nodes].get[<[next]>]>,<[world_name]>]>
     - flag <[bot]> lapex.arena_bot_nav_previous:<[nearest]>
-    - flag <[bot]> lapex.arena_bot_nav_lock expire:2s
-    - flag <[bot]> lapex.arena_bot_moving expire:2s
-    - walk <[bot]> <[goal]> speed:1.1
+    - flag <[bot]> lapex.arena_bot_nav_goal:<[goal]> expire:<script[lapex_arena_data].data_key[bot_tuning.navigation_lock]||20s>
+    - flag <[bot]> lapex.arena_bot_nav_lock expire:<script[lapex_arena_data].data_key[bot_tuning.navigation_lock]||20s>
+    # Stop any path whose timeout just elapsed, then give its per-tick adapter
+    # one tick to restore the original movement attribute before a new path
+    # captures it. This prevents old/new speed callbacks from racing.
+    - walk <[bot]> stop
+    - run lapex_arena_bot_walk_safe def.bot:<[bot]> def.goal:<[goal]> def.session:<[session]> delay:1t
+
+# Denizen's native walk adapter teleports a mob when Minecraft cannot create a
+# path. Detect that synchronous fallback and restore the origin before clients
+# receive a sustained position change. This keeps blocked graph edges from
+# becoming accidental teleports while retaining native obstacle pathfinding.
+lapex_arena_bot_walk_safe:
+    type: task
+    debug: false
+    definitions: bot|goal|session
+    script:
+    - if !<proc[lapex_arena_bot_available].context[<[bot]>|<[session]>]>:
+        - stop
+    - if <[bot].flag[lapex.arena_bot_nav_goal]||null> != <[goal]> || <[bot].has_flag[lapex.arena_bot_controlled_target]>:
+        - stop
+    - define origin <[bot].location>
+    - define speed <script[lapex_arena_data].data_key[bot_tuning.patrol_speed]||0.19>
+    - walk <[bot]> <[goal]> speed:<[speed]>
+    - define fallback_distance <script[lapex_arena_data].data_key[bot_tuning.fallback_teleport_distance]||1.0>
+    - if <[bot].location.distance[<[origin]>]> > <[fallback_distance]>:
+        - teleport <[bot]> <[origin]>
+        - walk <[bot]> stop
+        - flag <[bot]> lapex.arena_bot_stationary expire:2s
+        - flag <[bot]> lapex.arena_bot_moving:!
+        - flag <[bot]> lapex.arena_bot_nav_goal:!
+        - flag <[bot]> lapex.arena_bot_nav_lock:!
+        - stop
+    - flag <[bot]> lapex.arena_bot_moving expire:<script[lapex_arena_data].data_key[bot_tuning.movement_flag_duration]||21s>
     - run lapex_arena_bot_track_movement def.bot:<[bot]> def.session:<[session]>
 
 lapex_arena_bot_available:
@@ -472,6 +569,7 @@ lapex_arena_bot_fire_loop:
     - if <[bot].has_flag[lapex.arena_bot_firing]>:
         - stop
     - define token <util.random_uuid>
+    - define phase <[bot].flag[lapex.arena_bot_fire_phase]||0.5>
     - flag <[bot]> lapex.arena_bot_firing:<[token]>
     - repeat 120:
         - if !<proc[lapex_arena_bot_available].context[<[bot]>|<[session]>]> || <server.flag[lapex.arena.session]||null> != <[session]> || <server.flag[lapex.arena.state]||none> != live || <[bot].flag[lapex.arena_bot_firing]||null> != <[token]> || <[bot].has_flag[lapex.arena_bot_melee]>:
@@ -501,8 +599,10 @@ lapex_arena_bot_fire_loop:
             - flag <[bot]> lapex.arena_bot_reloading:!
             - repeat next
         - run lapex_arena_bot_fire_once def.bot:<[bot]> def.target:<[target]> def.session:<[session]>
-        - define cadence <element[1200].div[<[weapon].get[rpm]>].round_up.max[1]>
-        - wait <[cadence]>t
+        - define cadence <proc[lapex_weapon_cadence_step].context[<[weapon].get[rpm]>|<[phase]>]>
+        - define phase <[cadence].get[phase]>
+        - flag <[bot]> lapex.arena_bot_fire_phase:<[phase]> expire:30s
+        - wait <[cadence].get[delay]>t
     - if <[bot].is_spawned||false> && <[bot].flag[lapex.arena_bot_firing]||null> == <[token]>:
         - flag <[bot]> lapex.arena_bot_firing:!
         - flag <[bot]> lapex.arena_bot_reloading:!
@@ -584,12 +684,21 @@ lapex_arena_bots_smoke:
     - if <[nodes].size> < 20 || <script[lapex_arena_data].data_key[navigation_links].size||0> < 20:
         - narrate "<red>[Arena Bots] Navigation graph is too small."
         - define failures <[failures].add[1]>
+    - define patrol_speed <script[lapex_arena_data].data_key[bot_tuning.patrol_speed]||0>
+    - define chase_start <script[lapex_arena_data].data_key[bot_tuning.chase_start_distance]||0>
+    - define chase_stop <script[lapex_arena_data].data_key[bot_tuning.chase_stop_distance]||0>
+    - if <[patrol_speed]> <= 0 || <[patrol_speed]> > 0.3:
+        - narrate "<red>[Arena Bots] Patrol speed must be a raw vanilla-scale movement attribute (0.01-0.30)."
+        - define failures <[failures].add[1]>
+    - if <[chase_stop]> < 4 || <[chase_start]> <= <[chase_stop]>:
+        - narrate "<red>[Arena Bots] Chase distances need a valid stop/start hysteresis band."
+        - define failures <[failures].add[1]>
     - foreach <list[r301|flatline|volt|spitfire]> as:id:
         - define weapon <script[lapex_weapon_data].data_key[weapons.<[id]>]||null>
         - if <[weapon]> == null || <[weapon].get[damage]||0> <= 0 || <[weapon].get[range]||0> <= 0 || <[weapon].get[rpm]||0> <= 0 || <[weapon].get[mag]||0> <= 0 || <[weapon].get[reload]||null> == null || <[weapon].get[tracer]||null> == null:
             - narrate "<red>[Arena Bots] Incomplete bot weapon registry entry: <[id]>"
             - define failures <[failures].add[1]>
-    - foreach <list[lapex_arena_bot_reconcile|lapex_arena_native_spawn_husk|lapex_arena_bots_fill|lapex_arena_bots_cleanup|lapex_arena_bots_loop|lapex_arena_bot_enforce_ring|lapex_arena_bot_decide|lapex_arena_bot_choose_target|lapex_arena_bot_fire_loop|lapex_arena_bot_fire_once]> as:script_id:
+    - foreach <list[lapex_arena_bot_reconcile|lapex_arena_native_spawn_husk|lapex_arena_bots_fill|lapex_arena_bots_cleanup|lapex_arena_bots_loop|lapex_arena_bot_enforce_ring|lapex_arena_bot_decide|lapex_arena_bot_walk_safe|lapex_arena_bot_choose_target|lapex_arena_bot_fire_loop|lapex_arena_bot_fire_once|lapex_weapon_cadence_step]> as:script_id:
         - if <script[<[script_id]>]||null> == null:
             - narrate "<red>[Arena Bots] Missing script: <[script_id]>"
             - define failures <[failures].add[1]>
@@ -634,12 +743,17 @@ lapex_arena_bots_runtime_smoke:
             - else:
                 - define x 8
             - teleport <[bot]> <location[<[x]>,64,<[z]>,<[world_name]>]>
+            - flag <[bot]> lapex.arena_bot_smoke_origin:<[bot].location> expire:10s
     - wait 1s
     - define fired 0
     - define damaged 0
     - foreach <list[red|blue]> as:team:
         - foreach <server.flag[lapex.arena.bots.<[team]>]||<list>> as:bot:
             - if <[bot].is_spawned||false>:
+                - define smoke_origin <[bot].flag[lapex.arena_bot_smoke_origin]||null>
+                - if <[smoke_origin]> != null && <[bot].location.distance[<[smoke_origin]>]> > 3:
+                    - narrate "<red>[Arena Bots] <[team]> bot moved too far during its firing hold: <[bot].location.distance[<[smoke_origin]>].round_to[1]> blocks."
+                    - define failures <[failures].add[1]>
                 - define id <[bot].flag[lapex.arena_bot_weapon]||r301>
                 - define full_mag <script[lapex_weapon_data].data_key[weapons.<[id]>.mag]>
                 - if <[bot].flag[lapex.arena_bot_ammo]||<[full_mag]>> < <[full_mag]>:
@@ -658,6 +772,6 @@ lapex_arena_bots_runtime_smoke:
     - flag server lapex.arena.bot_smoke_session:!
     - if <[failures]> == 0:
         - narrate "<gray>[Arena Bots] Activity: <white><[fired]> fired<gray>, <white><[damaged]> took damage<gray>."
-        - narrate "<green>Arena bot runtime smoke passed: ten native bots spawned, acquired targets, and fired."
+        - narrate "<green>Arena bot runtime smoke passed: ten native bots spawned, held natural movement, acquired targets, and fired."
     - else:
         - narrate "<red>Arena bot runtime smoke failed with <[failures]> problem(s); rollback completed."

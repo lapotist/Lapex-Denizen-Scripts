@@ -75,16 +75,16 @@ lapex_weapon_events:
         # Weapon changes cancel pending fire, charge, and reload state at once.
         # Delayed queues also verify this token before touching the new item.
         on player holds item:
+        - run lapex_weapon_ads_cancel def.target:<player>
         - flag player lapex.trigger:!
         - flag player lapex.action_lock:!
         - flag player lapex.charging:!
         - flag player lapex.burst:!
         - flag player lapex.spinup:!
+        - flag player lapex.spinup_ready:!
+        - flag player lapex.auto_loop:!
         - flag player lapex.secondary:!
         - flag player lapex.reloading:!
-        - flag player lapex.ads:!
-        - flag player lapex.ads_token:!
-        - adjust <player> fov_multiplier:1
         - wait 1t
         - run lapex_weapon_migrate_held
 
@@ -103,12 +103,24 @@ lapex_weapon_events:
         on player respawns:
         - run lapex_weapon_reset_transient def.target:<player>
 
+        # A reload cancels delayed queues. Restore camera state first so an ADS
+        # monitor can never strand a player at the narrowed FOV.
+        on pre script reload:
+        - foreach <server.online_players> as:target:
+            - run lapex_weapon_ads_cancel def.target:<[target]>
+
+        # Also repairs camera state on the first deployment of this monitor,
+        # when the previously loaded script had no pre-reload cleanup event.
+        on scripts loaded:
+        - foreach <server.online_players> as:target:
+            - run lapex_weapon_ads_cancel def.target:<[target]>
+
 lapex_weapon_reset_transient:
     type: task
     debug: false
     definitions: target
     script:
-    - foreach <list[trigger|action_lock|burst|charging|spinup|auto_loop|secondary|reloading|ads|ads_token|jammed|whistler_heat|whistler_source|sentinel_amped|rampage_amped]> as:state:
+    - foreach <list[trigger|action_lock|burst|charging|spinup|spinup_ready|auto_loop|secondary|reloading|ads|ads_token|ads_monitor|fire_phase|recoil_shot|jammed|whistler_heat|whistler_source|sentinel_amped|rampage_amped]> as:state:
         - flag <[target]> lapex.<[state]>:!
     - adjust <[target]> fov_multiplier:1
 
@@ -129,25 +141,38 @@ lapex_weapon_ads:
     definitions: item
     script:
     - define id <[item].flag[lapex.id]||null>
-    - if <[id]> == null:
+    - if <[id]> == null || <player.item_in_hand.flag[lapex.id]||null> != <[id]>:
         - stop
+    # Right-click packets refresh this short lease. The one monitor owns FOV
+    # restoration as soon as the player releases use or changes weapons.
     - flag player lapex.ads:<[id]> expire:6t
-    - define token <util.random_uuid>
-    - flag player lapex.ads_token:<[token]>
     - adjust <player> fov_multiplier:0.72
-    - run lapex_weapon_ads_release def.token:<[token]>
+    - if !<player.has_flag[lapex.ads_monitor]>:
+        - flag player lapex.ads_monitor expire:10t
+        - run lapex_weapon_ads_monitor
 
-lapex_weapon_ads_release:
+lapex_weapon_ads_monitor:
     type: task
     debug: false
-    definitions: token
     script:
-    - wait 7t
-    - if <player.flag[lapex.ads_token]||null> != <[token]>:
-        - stop
-    - flag player lapex.ads:!
-    - flag player lapex.ads_token:!
-    - adjust <player> fov_multiplier:1
+    - while <player.is_online> && <player.has_flag[lapex.ads_monitor]>:
+        - define id <player.flag[lapex.ads]||null>
+        - if <[id]> == null || <player.item_in_hand.flag[lapex.id]||null> != <[id]>:
+            - while stop
+        - flag player lapex.ads_monitor expire:10t
+        - wait 1t
+    - run lapex_weapon_ads_cancel def.target:<player>
+
+lapex_weapon_ads_cancel:
+    type: task
+    debug: false
+    definitions: target
+    script:
+    - flag <[target]> lapex.ads:!
+    - flag <[target]> lapex.ads_token:!
+    - flag <[target]> lapex.ads_monitor:!
+    - if <[target].is_online||false>:
+        - adjust <[target]> fov_multiplier:1
 
 lapex_weapon_trigger:
     type: task
@@ -186,9 +211,9 @@ lapex_weapon_trigger:
         - stop
     - choose <[weapon].get[mode]>:
         - case auto:
-            # Keep the first held-input window alive through weapon spin-up.
-            - define trigger_ticks <[weapon].get[spinup_ticks]||0>
-            - flag player lapex.trigger:<[id]> expire:<[trigger_ticks].add[8]>t
+            # Vanilla sends an attack packet for each physical press but no
+            # held/released attack state while aiming at air or an entity.
+            # Treat every press as one round and let action_lock enforce RPM.
             - run lapex_weapon_auto def.id:<[id]>
         - case burst:
             - run lapex_weapon_burst def.id:<[id]>
@@ -204,8 +229,12 @@ lapex_weapon_semi:
     - if <player.has_flag[lapex.action_lock]>:
         - stop
     - define weapon <script[lapex_weapon_data].data_key[weapons.<[id]>]>
-    - define lock_ticks <element[1200].div[<[weapon].get[rpm]>].round_up>
+    - define phase <player.flag[lapex.fire_phase.<[id]>]||0.5>
+    - define cadence <proc[lapex_weapon_cadence_step].context[<[weapon].get[rpm]>|<[phase]>]>
+    - define lock_ticks <[cadence].get[delay]>
+    - flag player lapex.fire_phase.<[id]>:<[cadence].get[phase]> expire:30s
     - flag player lapex.action_lock expire:<[lock_ticks]>t
+    - flag player lapex.trigger:<[id]> expire:<[lock_ticks]>t
     - ~run lapex_weapon_fire_once def.id:<[id]>
 
 lapex_weapon_burst:
@@ -216,13 +245,17 @@ lapex_weapon_burst:
         - stop
     - define weapon <script[lapex_weapon_data].data_key[weapons.<[id]>]>
     - define count <[weapon].get[burst_count]||3>
-    - define delay <element[1200].div[<[weapon].get[rpm]>].round>
-    - define lock <[weapon].get[burst_lock_ticks]||<[count].mul[<[delay]>].add[3]>>
-    - define minimum_lock <[count].sub[1].mul[<[delay]>].add[1]>
+    - define ticks_per_shot <element[1200].div[<[weapon].get[rpm]>]>
+    - define lock <[weapon].get[burst_lock_ticks]||<[count].mul[<[ticks_per_shot]>].round.add[3]>>
+    - define minimum_lock <[count].sub[1].mul[<[ticks_per_shot]>].round.add[1]>
     - if <[lock]> < <[minimum_lock]>:
         - define lock <[minimum_lock]>
     - flag player lapex.action_lock expire:<[lock]>t
+    - flag player lapex.trigger:<[id]> expire:<[lock]>t
     - flag player lapex.burst:<[id]> expire:<[lock].add[5]>t
+    # Carry sub-tick remainder across bursts. Resetting here would make a
+    # 1080-RPM Nemesis use three one-tick gaps every time (1200 RPM in-burst).
+    - define phase <player.flag[lapex.fire_phase.<[id]>]||0.5>
     - repeat <[count]> as:round:
         - if <player.item_in_hand.flag[lapex.id]||null> != <[id]> || <player.flag[lapex.burst]||null> != <[id]> || <player.has_flag[lapex.jammed]>:
             - repeat stop
@@ -230,8 +263,12 @@ lapex_weapon_burst:
             - repeat stop
         - ~run lapex_weapon_fire_once def.id:<[id]>
         - if <[round]> < <[count]>:
-            - wait <[delay]>t
+            - define cadence <proc[lapex_weapon_cadence_step].context[<[weapon].get[rpm]>|<[phase]>]>
+            - define phase <[cadence].get[phase]>
+            - flag player lapex.fire_phase.<[id]>:<[phase]> expire:30s
+            - wait <[cadence].get[delay]>t
     - flag player lapex.burst:!
+    - flag player lapex.trigger:!
 
 lapex_weapon_charge:
     type: task
@@ -264,41 +301,91 @@ lapex_weapon_auto:
     debug: false
     definitions: id
     script:
-    - if <player.has_flag[lapex.auto_loop]>:
+    # There is no vanilla attack-release packet for air/entity aim. Guessing a
+    # hold from a grace period turns one click into an unwanted burst, so this
+    # path deliberately consumes exactly one round per ARM_SWING packet.
+    - if <player.has_flag[lapex.auto_loop]> || <player.has_flag[lapex.action_lock]>:
         - stop
     - define weapon <script[lapex_weapon_data].data_key[weapons.<[id]>]>
+    - if <player.item_in_hand.flag[lapex.ammo]||0> <= 0 && !<player.has_flag[lapex.tempest]>:
+        - run lapex_weapon_dry def.id:<[id]>
+        - stop
+    - define rpm <[weapon].get[rpm]>
+    - if <[id]> == rampage && <player.item_in_hand.has_flag[lapex.rampage_amped]>:
+        - define rpm 390
+    - define phase <player.flag[lapex.fire_phase.<[id]>]||0.5>
+    - define cadence <proc[lapex_weapon_cadence_step].context[<[rpm]>|<[phase]>]>
     - define spinup <[weapon].get[spinup_ticks]||0>
-    - flag player lapex.auto_loop:<[id]> expire:<[spinup].add[10]>t
-    - if <[spinup]> > 0:
+    - if <[spinup]> > 0 && !<player.has_flag[lapex.spinup_ready.<[id]>]>:
+        # A press starts the delayed first round. A short warm-state lease lets
+        # deliberate follow-up presses use normal cadence without re-spinning.
+        - flag player lapex.action_lock expire:<[spinup]>t
+        - flag player lapex.auto_loop:<[id]> expire:<[spinup].add[5]>t
         - flag player lapex.spinup:<[id]> expire:<[spinup].add[5]>t
         - actionbar "<yellow><[weapon].get[name]> <gray>spinning up..."
         - playsound <player> sound:block.respawn_anchor.charge pitch:1.6 volume:0.45
         - wait <[spinup]>t
-        - if <player.flag[lapex.trigger]||null> != <[id]> || <player.item_in_hand.flag[lapex.id]||null> != <[id]> || <player.flag[lapex.spinup]||null> != <[id]>:
+        - if <player.item_in_hand.flag[lapex.id]||null> != <[id]> || <player.flag[lapex.spinup]||null> != <[id]>:
             - flag player lapex.auto_loop:!
+            - flag player lapex.spinup:!
             - stop
         - flag player lapex.spinup:!
-    - define accumulator <element[1200].div[<[weapon].get[rpm]>]>
-    - while <player.is_online> && <player.health||0> > 0 && <player.flag[lapex.trigger]||null> == <[id]>:
-        - flag player lapex.auto_loop:<[id]> expire:5t
-        - if <player.item_in_hand.flag[lapex.id]||null> != <[id]> || <player.has_flag[lapex.reloading]> || <player.has_flag[lapex.action_lock]> || <player.has_flag[lapex.jammed]> || <player.has_flag[lapex.phased]>:
-            - while stop
-        # Re-evaluate rev state during held fire so expiry immediately restores
-        # the base Rampage cadence without requiring the player to release.
-        - define rpm <[weapon].get[rpm]>
-        - if <[id]> == rampage && <player.item_in_hand.has_flag[lapex.rampage_amped]>:
-            - define rpm 390
-        - define ticks_per_shot <element[1200].div[<[rpm]>]>
-        - define accumulator <[accumulator].add[1]>
-        - if <[accumulator]> >= <[ticks_per_shot]>:
-            - define accumulator <[accumulator].sub[<[ticks_per_shot]>]>
-            - if <player.item_in_hand.flag[lapex.ammo]||0> > 0 || <player.has_flag[lapex.tempest]>:
-                - ~run lapex_weapon_fire_once def.id:<[id]>
-            - else:
-                - run lapex_weapon_dry def.id:<[id]>
-                - while stop
-        - wait 1t
+    # Start the next-shot lock at the actual firing moment. For spin-up guns,
+    # the earlier lock protected the charge window and has just expired.
+    - flag player lapex.action_lock expire:<[cadence].get[delay]>t
+    - flag player lapex.fire_phase.<[id]>:<[cadence].get[phase]> expire:30s
+    - ~run lapex_weapon_fire_once def.id:<[id]>
+    - if <[spinup]> > 0:
+        - flag player lapex.spinup_ready.<[id]> expire:10t
     - flag player lapex.auto_loop:!
+
+# Converts a fractional rounds-per-minute interval into integer server ticks
+# while carrying the fractional remainder. Repeated calls stay within one tick
+# of the requested cadence instead of rounding every shot down to a slower gun.
+lapex_weapon_cadence_step:
+    type: procedure
+    debug: false
+    definitions: rpm|phase
+    script:
+    - if <[rpm]> <= 0:
+        - determine <map[delay=1;phase=0]>
+    - define exact <element[1200].div[<[rpm]>].max[1]>
+    - define delay <[exact].round_down>
+    - define remainder <[exact].sub[<[delay]>]>
+    - define next_phase <[phase].add[<[remainder]>]>
+    - if <[next_phase]> >= 1:
+        - define delay <[delay].add[1]>
+        - define next_phase <[next_phase].sub[1]>
+    - determine <map[delay=<[delay]>;phase=<[next_phase]>]>
+
+# Registry patterns store signed shot counts: positive segments kick right and
+# negative segments kick left. The sequence wraps only for magazines longer
+# than the sampled pattern. Zero means the weapon retains random horizontal
+# recoil because no trustworthy pattern has been entered yet.
+lapex_weapon_recoil_direction:
+    type: procedure
+    debug: false
+    definitions: id|shot
+    script:
+    # Fetch the list here instead of passing a ListTag through procedure
+    # context, whose pipe separator would split the pattern into definitions.
+    - define pattern <script[lapex_weapon_data].data_key[weapons.<[id]>.recoil_pattern]||<list>>
+    - if <[pattern].is_empty>:
+        - determine 0
+    - define total 0
+    - foreach <[pattern]> as:segment:
+        - define total <[total].add[<[segment].abs>]>
+    - if <[total]> <= 0:
+        - determine 0
+    - define position <[shot].sub[1].mod[<[total]>].add[1]>
+    - foreach <[pattern]> as:segment:
+        - define count <[segment].abs>
+        - if <[position]> <= <[count]>:
+            - if <[segment]> > 0:
+                - determine 1
+            - determine -1
+        - define position <[position].sub[<[count]>]>
+    - determine 0
 
 lapex_weapon_migrate_held:
     type: task
@@ -325,7 +412,7 @@ lapex_weapon_fire_once:
     - define registry <script[lapex_weapon_data].data_key[weapons]>
     - define weapon <[registry].get[<[id]>]>
     - define max_mag <[weapon].get[mag]>
-    - if <player.flag[lapex.legend]||bangalore> == rampart && <[weapon].get[class]> == Light Machine Gun:
+    - if <player.flag[lapex.legend]||bangalore> == rampart && <[weapon].get[class]> == "Light Machine Gun":
         - define max_mag <[max_mag].mul[1.15].round>
     - define ammo <player.item_in_hand.flag[lapex.ammo]||0>
     - if <player.has_flag[lapex.tempest]>:
@@ -364,7 +451,17 @@ lapex_weapon_fire_once:
     # never changes player position or velocity.
     - define eye <player.eye_location>
     - define kick_pitch <[weapon].get[recoil_pitch].mul[-1]>
-    - define kick_yaw <util.random_decimal.sub[0.5].mul[<[weapon].get[recoil_yaw]>]>
+    - define recoil_pattern <[weapon].get[recoil_pattern]||<list>>
+    - if <[recoil_pattern].is_empty>:
+        - define kick_yaw <util.random_decimal.sub[0.5].mul[<[weapon].get[recoil_yaw]>]>
+    - else:
+        - define recoil_shot <player.flag[lapex.recoil_shot.<[id]>]||0>
+        - define recoil_shot <[recoil_shot].add[1]>
+        - flag player lapex.recoil_shot.<[id]>:<[recoil_shot]> expire:12t
+        - define recoil_direction <proc[lapex_weapon_recoil_direction].context[<[id]>|<[recoil_shot]>]>
+        # Keep a little per-shot variance inside the sourced left/right shape.
+        - define recoil_jitter <util.random_decimal.sub[0.5].mul[<[weapon].get[recoil_yaw]>].mul[0.16]>
+        - define kick_yaw <[weapon].get[recoil_yaw].mul[0.32].mul[<[recoil_direction]>].add[<[recoil_jitter]>]>
     - define recoil_view <[eye].with_yaw[<[eye].yaw.add[<[kick_yaw]>]>].with_pitch[<[eye].pitch.add[<[kick_pitch]>]>]>
     - look <player> yaw:<[recoil_view].yaw> pitch:<[recoil_view].pitch>
 
@@ -403,7 +500,7 @@ lapex_weapon_fire_once:
         - define tracer_style shotgun
     - else if <[weapon].get[mode]> == charge:
         - define tracer_style charge
-    - else if <[weapon].get[class]> == Sniper Rifle || <[weapon].get[class]> == Marksman:
+    - else if <[weapon].get[class]> == "Sniper Rifle" || <[weapon].get[class]> == Marksman:
         - define tracer_style precision
     - define tracer_center <[pellets].add[1].div[2].round>
 
@@ -572,7 +669,7 @@ lapex_weapon_reload:
         - stop
     - define weapon <script[lapex_weapon_data].data_key[weapons.<[id]>]>
     - define max_mag <[weapon].get[mag]>
-    - if <player.flag[lapex.legend]||bangalore> == rampart && <[weapon].get[class]> == Light Machine Gun:
+    - if <player.flag[lapex.legend]||bangalore> == rampart && <[weapon].get[class]> == "Light Machine Gun":
         - define max_mag <[max_mag].mul[1.15].round>
     - define ammo <player.item_in_hand.flag[lapex.ammo]||0>
     - if <[ammo]> >= <[max_mag]>:
@@ -585,7 +682,7 @@ lapex_weapon_reload:
     - if <player.has_flag[lapex.tempest]>:
         - define reload_factor 0.55
     - else if <player.flag[lapex.legend]||bangalore> == rampart:
-        - if <[weapon].get[class]> == Light Machine Gun || <[id]> == sheila:
+        - if <[weapon].get[class]> == "Light Machine Gun" || <[id]> == sheila:
             - define reload_factor 0.75
 
     - if <[weapon].get[reload_style]||magazine> == shell:

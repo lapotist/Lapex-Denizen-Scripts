@@ -67,7 +67,7 @@ Lapex arena validation passed: 9 units, 10 unique spawns, 6 mirrored loot anchor
 Arena match validation passed: phase contract, score paths, 5v5 spawns, loadout items, and integrations.
 Arena loot smoke passed: six atomic bins, one progressive care box, and standard rewards.
 Arena bot smoke passed: 5v5 spawns, navigation graph, and four registry-backed loadouts.
-Arena bot runtime smoke passed: ten native bots spawned, acquired targets, and fired.
+Arena bot runtime smoke passed: ten native bots spawned, held natural movement, acquired targets, and fired.
 ```
 
 The reload is not successful if the console also shows an invalid event, tag,
@@ -82,7 +82,9 @@ separate live tests; do not claim those from a static smoke result.
 
 - [ ] Left-click fires in air, at a block, and at an entity.
 - [ ] A gun swing does not mine a block or add vanilla melee damage.
-- [ ] Holding an automatic gun fires repeatedly at its configured limit.
+- [ ] Tapping an automatic gun once spends exactly one round.
+- [ ] Holding left-click does not invent extra rounds after its one press.
+- [ ] Repeated physical clicks never exceed the configured RPM limit.
 - [ ] Right-click holds ADS; releasing it restores normal FOV quickly.
 - [ ] Switching items during ADS resets FOV.
 - [ ] F reloads without swapping the gun away.
@@ -211,6 +213,7 @@ For every changed power:
 - [ ] `lapex_arena_bots_runtime_smoke` creates ten native actors, observes combat, and leaves no active session or bot behind.
 - [ ] Human-to-bot, bot-to-human, and bot-to-bot friendly fire is blocked for allies.
 - [ ] Bots only shoot visible enemies and continue moving when one route is blocked.
+- [ ] Patrol movement stays near vanilla husk speed; firing bots do not slide or lunge.
 - [ ] Bot tracers, RPM, magazines, reload pauses, misses, Dome hits, and damage are readable.
 - [ ] A piloting Crypto is targeted at the body, never the spectator camera.
 - [ ] Lethal human damage enters spectator without showing the death screen.

@@ -121,6 +121,18 @@ lapex_arena_data:
         east: 76,64,0
         staging: 0,125,0
 
+    # Denizen's native-entity `walk speed:` value is the raw movement
+    # attribute, not a 1.0-based multiplier. Keep patrol speed close to a
+    # vanilla husk (0.23) and use hysteresis so ranged bots do not constantly
+    # switch between chasing and stopping at one exact distance.
+    bot_tuning:
+        patrol_speed: 0.19
+        chase_start_distance: 18
+        chase_stop_distance: 12
+        navigation_lock: 20s
+        movement_flag_duration: 21s
+        fallback_teleport_distance: 1.0
+
     # Named nodes and explicit links form a small navigation graph for bots.
     # Upper nodes are walkable catwalks at Y=71; all others are ground routes.
     navigation_nodes:

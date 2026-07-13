@@ -198,7 +198,7 @@ verified historical rules and intentional changes.
 
 ## Controls
 
-- Left-click: fire; holding supplies repeated input
+- Left-click: one fire action; repeat clicks to fire again
 - Hold right-click: ADS zoom and accuracy
 - F / swap hands: reload
 - Q / drop while holding a Lapex gun: selected legend tactical
@@ -220,10 +220,12 @@ fire rate, damage, recoil, spread, range, and pellets are editable in
 `scripts/apex_weapon_data.dsc`. Item materials and model IDs are in
 `scripts/apex_weapon_items.dsc`.
 
-Automatic guns use a tick-accurate fire loop. Minecraft also repeats held
-left-click swings for the other trigger types; their action locks still
-enforce the configured cadence, while deliberate clicks are needed to reach the
-fastest semi-automatic rates.
+Every physical left-click produces one fire action. Action locks enforce each
+gun's configured cadence, including fractional-tick rates. A vanilla client
+does not report held or released left-click while aiming at air or an entity, so
+server-only true hold-to-fire would require remapped controls or a client mod.
+Lapex keeps left-click fire and right-click ADS, prioritizing one-click/one-shot
+behavior over an inferred timer that unloads extra rounds after a tap.
 
 Legend cooldowns are stored as expiring player flags, persist through weapon
 swaps and legend changes, and can be cleared by an admin with

@@ -33,7 +33,7 @@ Hold the gun in your main hand. The last lore line shows its controls.
 | What you want to do | Control |
 | --- | --- |
 | Shoot | Left-click |
-| Keep shooting an automatic gun | Hold left-click |
+| Shoot again | Let go, then left-click again |
 | Aim down sights, called ADS | Hold right-click |
 | Reload | Press F, the swap-hands key |
 | Use a special gun charge | Sneak and press F on a supported gun |
@@ -52,7 +52,13 @@ Point at a living target and left-click.
 - A hit near the head deals more damage.
 - A hit near the legs deals less damage.
 - Shotguns send more than one pellet.
-- Automatic guns keep firing while the client keeps sending left-click swings.
+- One left-click spends one round, except a gun whose real mode is a burst.
+
+Plain Minecraft tells the server when you press left-click, but not when you
+keep holding or let go while aiming at a creature or the air. Lapex therefore
+does not guess. Click again for another automatic-gun round. This prevents one
+small click from firing several bullets. True hold-to-fire needs a client mod or
+different controls; right-click remains hold-to-ADS.
 
 Recoil moves the camera up and a little sideways. It does not move your feet,
 change your speed, or teleport you. If your body changes place when you shoot,

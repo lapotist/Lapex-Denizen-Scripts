@@ -579,7 +579,9 @@ lapex_arena_ring:
     - define final_size <script[lapex_arena_data].data_key[ring.final_size]||44>
     - define shrink <script[lapex_arena_data].data_key[ring.shrink]||90s>
     - worldborder <[map_world]> center:<[center]> current_size:<[start_size]> size:<[final_size]> duration:<[shrink]> warningdistance:8 damage:8 damagebuffer:0
-    - run lapex_arena_announce def.session:<[session]> "def.message:<red>Ring closing <dark_gray>| <white><[shrink].formatted>"
+    # `shrink` is already a DurationTag (for example `90s`). Its plain text is
+    # valid player-facing output; `.formatted` is not a DurationTag mechanism.
+    - run lapex_arena_announce def.session:<[session]> "def.message:<red>Ring closing <dark_gray>| <white><[shrink]>"
 
 # A normal timeout starts Apex-style sudden death instead of selecting a winner
 # by arbitrary health math. The lethal final ring keeps the result combat-owned.

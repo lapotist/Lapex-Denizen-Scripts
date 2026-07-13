@@ -106,6 +106,10 @@ Important contracts:
 
 - Item flag `lapex.id` is weapon identity.
 - Item flag `lapex.ammo` belongs to that physical item.
+- Every `ARM_SWING` press produces at most one automatic round. Vanilla sends
+  no held/released attack state for air or entity aim, so never infer a hold.
+- Fractional RPM intervals carry their remainder in `fire_phase`; fixed upward
+  rounding would make many weapons slower than their registry value.
 - A delayed queue rechecks the held item ID before changing ammo or state.
 - Recoil changes yaw and pitch only. It never teleports or pushes the shooter.
 - Target velocity is restored after scripted damage to avoid unwanted knockback.
@@ -113,12 +117,12 @@ Important contracts:
 
 ## ADS Pipeline
 
-Right-click use input refreshes `lapex.ads` for a short time and writes a new
-`lapex.ads_token`. The release task waits seven ticks. It restores FOV only when
-its token still matches, so an old release cannot end a newer hold.
+Right-click use input refreshes `lapex.ads` for a short time. One
+`lapex.ads_monitor` queue watches that lease and the held weapon. When either no
+longer matches, it clears ADS and restores FOV.
 
-Holding a different item, joining, and quitting all restore FOV to `1` and clear
-the ADS state.
+Holding a different item, joining, quitting, and reloading scripts all restore
+FOV to `1` and clear the ADS state.
 
 ## Legend Pipeline
 
@@ -194,8 +198,8 @@ Flags act like internal APIs between scripts.
 | --- | --- | --- |
 | Player identity | `lapex.legend`, `lapex.team` | Persistent until changed. |
 | Item identity | item `lapex.id`, item `lapex.ammo` | Stored on each gun. |
-| Weapon transaction | `trigger`, `auto_loop`, `spinup`, `action_lock`, `burst`, `charging`, `reloading`, `secondary` | Short action state. |
-| View | `ads`, `ads_token` | Refreshed while ADS is held. |
+| Weapon transaction | `trigger`, `auto_loop`, `fire_phase`, `recoil_shot`, `spinup`, `spinup_ready`, `action_lock`, `burst`, `charging`, `reloading`, `secondary` | Short action state. |
+| View | `ads`, `ads_monitor` | Refreshed while ADS is held. |
 | Shared combat | `legend_protected`, `pylon_protected`, `phased`, `legend_silenced`, `tempest`, `amped_cover` | Timed ability state. |
 | Combat telemetry | `last_target`, `last_attacker`, `last_shot_location`, `last_damage_location`, `low_health`, `threatened_by` | Short evidence for passives. |
 | Crypto session | `crypto_active`, `crypto_origin`, `crypto_gamemode`, body/drone entity, body chunk, drone health | From launch through one cleanup path. |
@@ -283,6 +287,13 @@ Bot pathfinding is supplied by native husks through Denizen's entity `walk`,
 `look`, and `attack` commands. Denizen owns target selection and hitscan. Bots
 only choose visible enemies, use imperfect aim, share the gun registry, respect
 Dome and combat protection, and delete themselves when a stale chunk reloads.
+
+For native entities, Denizen's `walk speed:` is the raw movement attribute, not
+a multiplier where `1.0` means normal speed. Patrol uses `0.19`, near a vanilla
+husk's `0.23`; combat pursuit starts beyond 18 blocks and stops inside 12 to
+avoid path restarts every decision tick. Player and bot guns both call
+`lapex_weapon_cadence_step`, so fractional registry RPM must not be rounded
+independently in either loop.
 
 ## Resource-Pack Pipeline
 

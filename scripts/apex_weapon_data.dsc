@@ -3,6 +3,8 @@
 # Damage values are Apex HP and are scaled to Minecraft HP by the engine. The
 # defaults target the current Season 29 / Overclocked roster. All balance values
 # live here so a server owner can update a patch without changing engine code.
+# Recoil pattern entries are signed shot counts. Positive entries move right;
+# negative entries move left. Recoil strength still comes from recoil_yaw.
 
 lapex_weapon_data:
     type: data
@@ -111,6 +113,11 @@ lapex_weapon_data:
             ads_spread: 0.12
             recoil_pitch: 0.62
             recoil_yaw: 0.42
+            recoil_pattern:
+            - 5
+            - -5
+            - 7
+            - -12
             spinup_ticks: 8
             tracer: 120,255,245
             sound_pitch: 1.15
@@ -131,6 +138,11 @@ lapex_weapon_data:
             ads_spread: 0.14
             recoil_pitch: 0.7
             recoil_yaw: 0.58
+            recoil_pattern:
+            - -7
+            - 5
+            - -10
+            - 7
             tracer: 195,155,110
             sound_pitch: 0.85
         hemlok_breach:
@@ -173,6 +185,10 @@ lapex_weapon_data:
             ads_spread: 0.08
             recoil_pitch: 0.38
             recoil_yaw: 0.2
+            recoil_pattern:
+            - 12
+            - -7
+            - 12
             tracer: 255,225,150
             sound_pitch: 1.35
         nemesis:
@@ -183,7 +199,7 @@ lapex_weapon_data:
             damage: 17
             head_mult: 1.3
             leg_mult: 0.75
-            rpm: 451
+            rpm: 1080
             burst_count: 4
             burst_lock_ticks: 11
             mag: 20
@@ -213,6 +229,10 @@ lapex_weapon_data:
             ads_spread: 0.12
             recoil_pitch: 0.32
             recoil_yaw: 0.18
+            recoil_pattern:
+            - 15
+            - -11
+            - 4
             tracer: 255,220,145
             sound_pitch: 1.25
         prowler:
@@ -225,7 +245,7 @@ lapex_weapon_data:
             leg_mult: 0.8
             rpm: 579
             burst_count: 5
-            burst_lock_ticks: 9
+            burst_lock_ticks: 10
             mag: 20
             reload: 2.0s
             empty_reload: 2.6s
@@ -253,6 +273,12 @@ lapex_weapon_data:
             ads_spread: 0.11
             recoil_pitch: 0.52
             recoil_yaw: 0.34
+            recoil_pattern:
+            - 9
+            - -5
+            - 4
+            - -5
+            - 4
             tracer: 255,225,150
             sound_pitch: 1.9
         volt:
@@ -272,6 +298,11 @@ lapex_weapon_data:
             ads_spread: 0.08
             recoil_pitch: 0.3
             recoil_yaw: 0.16
+            recoil_pattern:
+            - 11
+            - -4
+            - 4
+            - -10
             tracer: 100,235,255
             sound_pitch: 1.55
         car:
@@ -291,6 +322,12 @@ lapex_weapon_data:
             ads_spread: 0.12
             recoil_pitch: 0.48
             recoil_yaw: 0.36
+            recoil_pattern:
+            - -9
+            - 6
+            - -3
+            - 6
+            - -6
             tracer: 245,205,145
             sound_pitch: 1.65
         devotion:
@@ -310,6 +347,10 @@ lapex_weapon_data:
             ads_spread: 0.15
             recoil_pitch: 0.46
             recoil_yaw: 0.3
+            recoil_pattern:
+            - -20
+            - 23
+            - -5
             spinup_ticks: 14
             tracer: 105,240,255
             sound_pitch: 1.45
@@ -331,6 +372,9 @@ lapex_weapon_data:
             ads_spread: 0.13
             recoil_pitch: 0.38
             recoil_yaw: 0.28
+            recoil_pattern:
+            - -4
+            - 24
             tracer: 255,80,80
             sound_pitch: 1.25
         spitfire:
@@ -350,6 +394,13 @@ lapex_weapon_data:
             ads_spread: 0.14
             recoil_pitch: 0.4
             recoil_yaw: 0.24
+            recoil_pattern:
+            - -7
+            - 5
+            - -10
+            - 13
+            - -11
+            - 4
             tracer: 255,220,145
             sound_pitch: 0.8
         rampage:
@@ -380,7 +431,7 @@ lapex_weapon_data:
             damage: 37
             head_mult: 1.4
             leg_mult: 0.75
-            rpm: 240
+            rpm: 252
             mag: 20
             reload: 2.4s
             empty_reload: 3.0s
@@ -401,7 +452,7 @@ lapex_weapon_data:
             pellet_spread: 0.34
             head_mult: 1.4
             leg_mult: 0.75
-            rpm: 105
+            rpm: 81
             mag: 12
             reload: 2.6s
             empty_reload: 3.4s
@@ -520,7 +571,7 @@ lapex_weapon_data:
             damage: 70
             head_mult: 1.8
             leg_mult: 0.7
-            rpm: 37
+            rpm: 38
             mag: 4
             reload: 3.0s
             empty_reload: 4.0s
@@ -580,13 +631,13 @@ lapex_weapon_data:
             name: Mozambique Shotgun
             class: Shotgun
             ammo: Shotgun Shells
-            mode: semi
+            mode: auto
             damage: 17
             pellets: 3
             pellet_spread: 1.8
             head_mult: 1.25
             leg_mult: 0.9
-            rpm: 160
+            rpm: 202
             mag: 5
             reload: 2.1s
             empty_reload: 2.6s

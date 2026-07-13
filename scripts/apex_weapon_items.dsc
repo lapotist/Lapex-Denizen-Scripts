@@ -445,7 +445,7 @@ apex_sheila:
         custom_model_data: 1030
     lore:
     - <gray>Rampart Ultimate | Spin-up minigun
-    - <dark_gray>Hold left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
     flags:
         lapex:
             id: sheila

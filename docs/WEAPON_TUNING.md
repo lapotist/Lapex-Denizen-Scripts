@@ -36,6 +36,15 @@ hurt target -> restore target velocity -> update ammo display
 The engine saves the eye location before recoil. The ray uses that saved aim, so
 the current shot does not jump twice when the camera kick is sent.
 
+For automatic guns, one `ARM_SWING` spends at most one round. The vanilla client
+does not send held/released attack state while aiming at air or an entity, and
+Paper's `Input` exposes movement, jump, sneak, and sprint only. A grace timer
+therefore cannot distinguish a tap from a hold and must not emit extra rounds.
+Players repeat physical clicks; `action_lock` caps accepted presses at the
+configured RPM. Fractional tick remainder is carried between accepted shots and
+bursts so rates such as 810 RPM alternate integer delays instead of becoming
+600 RPM. Server-controlled Arena bots use the same cadence procedure.
+
 ## Shared Numbers
 
 | Key | Meaning |
@@ -56,7 +65,7 @@ armored targets separately.
 | `name` | Display name | Match current terminology. |
 | `class` | Weapon family | Used by passives, tracer style, and roster output. |
 | `ammo` | Display ammo type | This test-range pack does not consume reserve items. |
-| `mode` | `auto`, `semi`, `burst`, `spinup`, or `charge` | Test the matching trigger path. |
+| `mode` | `auto`, `semi`, `burst`, or `charge` | Spin-up is an optional field on an automatic weapon. |
 | `damage` | Apex body damage per pellet or shot | Multiplied by `damage_scale`. |
 | `head_mult` | Head multiplier | Applied after base damage. |
 | `leg_mult` | Leg multiplier | Applied after base damage. |
@@ -68,7 +77,8 @@ armored targets separately.
 | `hip_spread` | Random yaw and pitch size without ADS | Larger means less accurate. |
 | `ads_spread` | Random yaw and pitch size during ADS | Usually much smaller than hip spread. |
 | `recoil_pitch` | Upward camera kick in degrees | The engine multiplies it by `-1`. |
-| `recoil_yaw` | Horizontal kick envelope | Current code picks a value within half this width. |
+| `recoil_yaw` | Horizontal kick envelope | Scales deterministic direction or unmeasured random kick. |
+| `recoil_pattern` | Optional signed segment lengths | Positive is right, negative is left; only add sourced patterns. |
 | `tracer` | RGB color | Must be readable against bright and dark blocks. |
 | `sound_pitch` | Pitch of the shared shot sound | Keep it positive and test repeated fire. |
 
@@ -110,8 +120,10 @@ matches the held gun:
 - `ads_spread` replaces `hip_spread`;
 - shotgun pellet spread is multiplied by `0.45`.
 
-The release task uses a token. An old task cannot turn off a newer ADS hold.
-Item changes, join, and quit reset FOV to `1`.
+A single monitor watches the refreshed flag and held item. When refresh packets
+stop, the monitor clears ADS and restores FOV to `1`. Item changes, join, quit,
+death, respawn, and script reloads also reset FOV, so a cancelled delayed queue
+cannot leave the camera zoomed.
 
 ## Tracers
 
@@ -135,7 +147,7 @@ that other players see the correct path.
 
 - Sentinel amp and Rampage rev flags live on the physical gun item. Swapping to
   another copy does not transfer the charge.
-- Rampage reads its rev state every automatic-fire tick, so RPM returns to base
+- Rampage reads its rev state before every automatic-fire interval, so RPM returns to base
   as soon as the item flag expires.
 - Whistler carries two rounds, refreshes heat to 15 seconds, and uses 50 Apex
   overheat damage. Independent tactical recharge is still a known gap.
@@ -144,9 +156,11 @@ that other players see the correct path.
 - Charge Rifle remains delayed hitscan with range scaling. Projectile travel,
   drop, and current select-fire behavior are not simulated.
 
-EA does not publish complete recoil sequences. `recoil_pitch` and `recoil_yaw`
-therefore remain Lapex approximations even when current damage and multiplier
-changes have an official source.
+EA does not publish complete recoil sequences. The current signed direction
+segments come from the [July 2026 weapon input and recoil research
+record](research/features/weapon-input-recoil-2026-07.md); `recoil_pitch` and
+`recoil_yaw` strength remain Lapex approximations even when current damage and
+multiplier changes have an official source.
 
 ## Safe Balance Change
 

@@ -120,6 +120,10 @@ lapex_validate:
     - define ids <script[lapex_weapon_data].data_key[all_ids]>
     - define failures 0
     - narrate "<yellow>Lapex validation started for <[ids].size> guns..."
+    - foreach <list[lapex_weapon_trigger|lapex_weapon_auto|lapex_weapon_cadence_step|lapex_weapon_recoil_direction|lapex_weapon_ads_monitor|lapex_weapon_ads_cancel]> as:required_script:
+        - if <script[<[required_script]>]||null> == null:
+            - narrate "<red>[Lapex] Missing weapon input runtime: <[required_script]>"
+            - define failures <[failures].add[1]>
     - foreach <[ids]> as:id:
         - if !<[registry].keys.contains[<[id]>]>:
             - narrate "<red>[Lapex] Missing registry entry: <[id]>"
@@ -145,9 +149,53 @@ lapex_validate:
         - if <[initial_ammo]> < 0 || <[initial_ammo]> > <[weapon].get[mag]>:
             - narrate "<red>[Lapex] Invalid initial ammo: <[id]>"
             - define failures <[failures].add[1]>
+        - define mode <[weapon].get[mode]||null>
+        - if !<list[auto|burst|charge|semi].contains[<[mode]>]>:
+            - narrate "<red>[Lapex] Invalid fire mode on <[id]>: <[mode]>"
+            - define failures <[failures].add[1]>
+        - define rpm <[weapon].get[rpm]||0>
+        - if <[rpm]> <= 0 || <[rpm]> > 1200:
+            - narrate "<red>[Lapex] RPM is outside the 20 TPS runtime range on <[id]>: <[rpm]>"
+            - define failures <[failures].add[1]>
+        - else:
+            # Simulate enough intervals to prove fractional tick pacing remains
+            # within one server tick of the registry RPM.
+            - define cadence_phase 0.5
+            - define cadence_elapsed 0
+            - define cadence_invalid false
+            - repeat 32:
+                - define cadence <proc[lapex_weapon_cadence_step].context[<[rpm]>|<[cadence_phase]>]>
+                - define cadence_delay <[cadence].get[delay]||0>
+                - if <[cadence_delay]> < 1:
+                    - define cadence_invalid true
+                    - repeat stop
+                - define cadence_elapsed <[cadence_elapsed].add[<[cadence_delay]>]>
+                - define cadence_phase <[cadence].get[phase]||0>
+            - define cadence_expected <element[1200].div[<[rpm]>].mul[32]>
+            - if <[cadence_invalid]> || <[cadence_elapsed].sub[<[cadence_expected]>].abs> > 1:
+                - narrate "<red>[Lapex] Cadence pacing failed on <[id]>"
+                - define failures <[failures].add[1]>
+        - define recoil_pattern <[weapon].get[recoil_pattern]||<list>>
+        - if !<[recoil_pattern].is_empty>:
+            - define recoil_invalid false
+            - define recoil_position 1
+            - foreach <[recoil_pattern]> as:segment:
+                - if !<[segment].is_integer> || <[segment]> == 0:
+                    - define recoil_invalid true
+                - else:
+                    - define recoil_expected 1
+                    - if <[segment]> < 0:
+                        - define recoil_expected -1
+                    - define recoil_direction <proc[lapex_weapon_recoil_direction].context[<[id]>|<[recoil_position]>]>
+                    - if <[recoil_direction]> != <[recoil_expected]>:
+                        - define recoil_invalid true
+                    - define recoil_position <[recoil_position].add[<[segment].abs>]>
+            - if <[recoil_invalid]>:
+                - narrate "<red>[Lapex] Invalid recoil pattern on <[id]>"
+                - define failures <[failures].add[1]>
         # Force required values through the object conversions used by runtime.
         - define checked_damage <[weapon].get[damage].mul[<script[lapex_weapon_data].data_key[damage_scale]>]>
-        - define checked_rpm <element[1200].div[<[weapon].get[rpm]>]>
+        - define checked_rpm <element[1200].div[<[rpm].max[1]>]>
         - define checked_range <[weapon].get[range].round>
         - define checked_mag <[weapon].get[mag].round>
         - define checked_reload <duration[<[weapon].get[reload]>].in_ticks>

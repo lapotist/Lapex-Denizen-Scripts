@@ -43,7 +43,7 @@ Lapex was runtime-tested with Paper 26.1.2 and Denizen 1.3.3 build
    Arena match validation passed: phase contract, score paths, 5v5 spawns, loadout items, and integrations.
    Arena loot smoke passed: six atomic bins, one progressive care box, and standard rewards.
    Arena bot smoke passed: 5v5 spawns, navigation graph, and four registry-backed loadouts.
-   Arena bot runtime smoke passed: ten native bots spawned, acquired targets, and fired.
+   Arena bot runtime smoke passed: ten native bots spawned, held natural movement, acquired targets, and fired.
    ```
 
    The runtime bot smoke briefly creates a private all-bot session in the built
