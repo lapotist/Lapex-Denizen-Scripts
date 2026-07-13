@@ -95,6 +95,11 @@ From the Paper console:
 ex reload scripts_now
 ex run lapex_validate
 ex run lapex_map_validate
+ex run lapex_arena_validate
+ex run lapex_arena_match_validate
+ex run lapex_arena_loot_smoke
+ex run lapex_arena_bots_smoke
+ex run lapex_arena_bots_runtime_smoke
 ex run lapex_deployable_smoke def.owner:<server.offline_players.first> def.location:<world[world].spawn_location.above[4]>
 ex run lapex_dome_geometry_smoke def.center:<world[world].spawn_location.above[2]>
 ex run lapex_charge_smoke def.target:<server.offline_players.first>
@@ -105,6 +110,11 @@ Expected results:
 ```text
 Lapex validation passed: 32 guns and 28 legends resolved.
 Lapex map validation passed: 17 POIs, 640x640 border, and all build tasks resolved.
+Lapex arena validation passed: 9 units, 10 unique spawns, 6 mirrored loot anchors, and all signatures present.
+Arena match validation passed: phase contract, score paths, 5v5 spawns, loadout items, and integrations.
+Arena loot smoke passed: six atomic bins, one progressive care box, and standard rewards.
+Arena bot smoke passed: 5v5 spawns, navigation graph, and four registry-backed loadouts.
+Arena bot runtime smoke passed: ten native bots spawned, acquired targets, and fired.
 Lapex deployable smoke passed: native proxies, extras, register, replace, and cleanup.
 Lapex Dome geometry smoke passed: upper shell, both directions, internal shot, and lower-half rejection.
 Lapex charge smoke passed: due ordering, charge cap, and test-flag rollback.

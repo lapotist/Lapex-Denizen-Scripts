@@ -66,7 +66,7 @@ lapex_legend_passive_events:
         - define source null
         - if <[damager]> != null:
             - define source <[damager].shooter||<[damager]>>
-        - if <[source]> == null || !<[source].is_player||false> || <[source]> == <context.entity>:
+        - if <[source]> == null || !<[source].is_player||false> && !<[source].has_flag[lapex.arena_bot]> || <[source]> == <context.entity>:
             - stop
         # Phase transit blocks outgoing vanilla melee and projectiles too. Gun
         # and ability entry points already reject the same shared flag.

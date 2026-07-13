@@ -201,6 +201,10 @@ lapex_validate:
         - if <script[<[required_script]>]||null> == null:
             - narrate "<red>[Lapex] Missing deployable runtime: <[required_script]>"
             - define failures <[failures].add[1]>
+    - foreach <list[lapex_arena_data|lapex_arena_build|lapex_arena_validate|lapex_arena_prepare_round|lapex_arena_match_validate|lapex_arena_loot_reset|lapex_arena_loot_smoke|lapex_arena_bots_fill|lapex_arena_bots_cleanup|lapex_arena_bots_smoke]> as:required_script:
+        - if <script[<[required_script]>]||null> == null:
+            - narrate "<red>[Lapex] Missing Arena runtime: <[required_script]>"
+            - define failures <[failures].add[1]>
     - if <[failures]> == 0:
         - narrate "<green>Lapex validation passed: <[ids].size> guns and <[legend_ids].size> legends resolved."
     - else:

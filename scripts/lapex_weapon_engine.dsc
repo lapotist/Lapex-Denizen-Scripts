@@ -49,6 +49,11 @@ lapex_weapon_events:
         - define id <player.item_in_hand.flag[lapex.id]||null>
         - if <[id]> == null:
             - stop
+        - define arena_session <player.flag[lapex.arena_session]||null>
+        - if <[arena_session]> != null:
+            - if <server.flag[lapex.arena.session]||null> != <[arena_session]> || <server.flag[lapex.arena.state]||none> != live || <player.has_flag[lapex.arena_eliminated]>:
+                - determine passively cancelled
+                - stop
         - if <player.has_flag[lapex.reloading]> || <player.has_flag[lapex.action_lock]> || <player.has_flag[lapex.secondary]>:
             - determine passively cancelled
             - stop
@@ -154,6 +159,11 @@ lapex_weapon_trigger:
     - define id <[item].flag[lapex.id]||null>
     - if <[id]> == null:
         - stop
+    - define arena_session <player.flag[lapex.arena_session]||null>
+    - if <[arena_session]> != null:
+        - if <server.flag[lapex.arena.session]||null> != <[arena_session]> || <server.flag[lapex.arena.state]||none> != live || <player.has_flag[lapex.arena_eliminated]>:
+            - actionbar "<yellow>Weapons unlock when the Arena round begins"
+            - stop
     - define registry <script[lapex_weapon_data].data_key[weapons]>
     - if !<[registry].keys.contains[<[id]>]>:
         - stop

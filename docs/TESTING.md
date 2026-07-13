@@ -42,6 +42,11 @@ From the Paper console, run:
 ex reload scripts_now
 ex run lapex_validate
 ex run lapex_map_validate
+ex run lapex_arena_validate
+ex run lapex_arena_match_validate
+ex run lapex_arena_loot_smoke
+ex run lapex_arena_bots_smoke
+ex run lapex_arena_bots_runtime_smoke
 ex run lapex_deployable_smoke def.owner:<server.offline_players.first> def.location:<world[world].spawn_location.above[4]>
 ex run lapex_dome_geometry_smoke def.center:<world[world].spawn_location.above[2]>
 ex run lapex_charge_smoke def.target:<server.offline_players.first>
@@ -58,10 +63,20 @@ Lapex map validation passed: 17 POIs, 640x640 border, and all build tasks resolv
 Lapex deployable smoke passed: native proxies, extras, register, replace, and cleanup.
 Lapex Dome geometry smoke passed: upper shell, both directions, internal shot, and lower-half rejection.
 Lapex charge smoke passed: due ordering, charge cap, and test-flag rollback.
+Lapex arena validation passed: 9 units, 10 unique spawns, 6 mirrored loot anchors, and all signatures present.
+Arena match validation passed: phase contract, score paths, 5v5 spawns, loadout items, and integrations.
+Arena loot smoke passed: six atomic bins, one progressive care box, and standard rewards.
+Arena bot smoke passed: 5v5 spawns, navigation graph, and four registry-backed loadouts.
+Arena bot runtime smoke passed: ten native bots spawned, acquired targets, and fired.
 ```
 
 The reload is not successful if the console also shows an invalid event, tag,
 mechanism, material, or command error.
+
+The loot and bot static smokes validate registries and contracts. The runtime
+bot smoke proves native spawning, targeting, firing, and rollback. Capacity
+clicks, a full round, a five-minute tick soak, and ten real clients remain
+separate live tests; do not claim those from a static smoke result.
 
 ## Shooting Checklist
 
@@ -186,6 +201,28 @@ For every changed power:
 - [ ] Test two casters at once.
 - [ ] Check that particles, sounds, names, and action-bar text match the state.
 - [ ] Record every intentional Minecraft adaptation.
+
+## Arena Foundry Checklist
+
+- [ ] `/arena join` refuses an unloaded or incomplete Foundry before changing player state.
+- [ ] Red and blue each use five unique safe starts with no direct spawn sightline.
+- [ ] Prep lasts 30 seconds; movement stays in the start area and guns/abilities remain locked.
+- [ ] Empty slots fill to exactly five actors on both teams.
+- [ ] `lapex_arena_bots_runtime_smoke` creates ten native actors, observes combat, and leaves no active session or bot behind.
+- [ ] Human-to-bot, bot-to-human, and bot-to-bot friendly fire is blocked for allies.
+- [ ] Bots only shoot visible enemies and continue moving when one route is blocked.
+- [ ] Bot tracers, RPM, magazines, reload pauses, misses, Dome hits, and damage are readable.
+- [ ] A piloting Crypto is targeted at the body, never the spectator camera.
+- [ ] Lethal human damage enters spectator without showing the death screen.
+- [ ] Eliminated humans and bots never return during the current round.
+- [ ] Six barrels allow two claims each; the center care box allows three claims.
+- [ ] Claims cannot be duplicated by double-clicking, hoppers, reconnecting, or stale blocks.
+- [ ] The Ring damages humans and bots and guarantees that an all-bot round can finish.
+- [ ] Scores `3-0`, `3-1`, `3-2`, `4-2`, `4-3`, and round nine follow the win contract.
+- [ ] Stop, quit, reload, restart, and match completion remove bots/loot and restore player state.
+- [ ] A stale persistent bot removes itself when its chunk loads.
+- [ ] Ten bots can fight for five minutes without console errors or sustained tick loss.
+- [ ] The top-down render shows three connected lanes, dense cover, both elevations, and clear symmetry.
 
 ## Report Template
 

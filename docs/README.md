@@ -4,7 +4,7 @@ Start with the guide that matches what you want to do.
 
 | Guide | Who it is for | What it explains |
 | --- | --- | --- |
-| [Player Guide](PLAYER_GUIDE.md) | Players | How to get a gun, shoot, aim, reload, use legends, and fly Crypto's drone. |
+| [Player Guide](PLAYER_GUIDE.md) | Players | How to get a gun, shoot, aim, reload, use legends, fly Crypto's drone, and play Arena Foundry. |
 | [Legend Guide](LEGEND_GUIDE.md) | Players and testers | What every legend does in Lapex and where Minecraft changes the idea. |
 | [Weapon Tuning](WEAPON_TUNING.md) | Balance contributors | Damage, fire rate, spread, recoil, tracers, and safe tuning. |
 | [Architecture](ARCHITECTURE.md) | Maintainers | How the files, events, tasks, flags, and resource pack fit together. |

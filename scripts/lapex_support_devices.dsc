@@ -231,7 +231,13 @@ lapex_lifeline_doc_loop:
         - define pulse <[pulse].add[1]>
         - define owner <[entity].flag[lapex.deployable_owner]>
         - define follow <[entity].flag[lapex.lifeline_doc_target]||null>
-        - if <[follow]> != null && <[follow].is_online||false> && <[follow].world> == <[entity].world>:
+        - define follow_available false
+        - if <[follow]> != null:
+            - if <[follow].is_player||false> && <[follow].is_online||false>:
+                - define follow_available true
+            - else if !<[follow].is_player||false> && <[follow].is_spawned||false>:
+                - define follow_available true
+        - if <[follow_available]> && <[follow].world> == <[entity].world>:
             - if <[follow].has_flag[lapex.crypto_active]>:
                 - define body <[follow].flag[lapex.crypto_body_entity]||null>
                 - if <[body]> != null && <[body].is_spawned||false>:

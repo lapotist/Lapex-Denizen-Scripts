@@ -34,9 +34,9 @@ lapex_deployable_events:
         - define source null
         - if <[damager]> != null:
             - define source <[damager].shooter||<[damager]>>
-        - if <[source]> != null && <[source].is_player||false> && <[source].has_flag[lapex.phased]>:
+        - if <[source]> != null && <[source].has_flag[lapex.phased]>:
             - stop
-        - if <[source]> != null && <[source].is_player||false> && <proc[lapex_legend_is_ally].context[<[owner]>|<[source]>]>:
+        - if <[source]> != null && <proc[lapex_legend_is_ally].context[<[owner]>|<[source]>]>:
             - if <[kind]> == caustic_trap:
                 - run lapex_caustic_trigger def.entity:<[proxy]> def.session:<[session]>
             - stop

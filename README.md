@@ -26,6 +26,8 @@ are listed honestly in the legend guide while they are migrated.
 - Paper 26.1.2 or newer
 - Denizen 1.3.3 (build 7294-DEV or newer)
 - No Citizens dependency
+- `max-players=10` or higher for a fully human 5v5 match; playtest bots fill
+  every combat slot not occupied by a joined Arena player
 
 Copy the repository's `scripts` directory into a subdirectory of
 `plugins/Denizen/scripts/`, then reload from the server console or in game:
@@ -144,11 +146,55 @@ uses that same full repair path and requires the explicit confirmation word.
 
 Block breaking and placement in this world are cancelled unless the player has
 `lapex.map.edit`. Grant that permission only to builders who should be able to
-alter the arena.
+alter Kings Canyon.
 
 The read-only `tools/render_kings_canyon.py` utility renders modern Anvil region
 files to the preview PNG and checks for missing or unreadable chunks. It does
 not require the Minecraft server to be running.
+
+## Arena Foundry 5v5
+
+![Arena Foundry top-down preview](artifacts/arena_foundry_topdown.png)
+
+Arena Foundry is a separate compact combat world built for round-based 5v5
+matches. Its authored floor is about 192 by 144 blocks, with protected north
+and south spawns, a two-level center foundry, a west service tunnel, an east
+cargo lane and gantry, frequent hard cover, six supply bins, and one central
+care box.
+
+Create and validate the map as an operator:
+
+```text
+/lapexarena create
+/lapexarena build
+/lapexarena status
+/lapexarena validate
+```
+
+Players join a side and choose the gun they receive at the start of each round:
+
+```text
+/arena join red
+/arena loadout r301
+```
+
+An operator starts the match with `/arena start`. Each side always has five
+combat slots; native server-controlled gun bots fill every empty slot without
+Citizens. Use `/arena status`, `/arena leave`, and `/arena stop` to inspect or
+end the session.
+
+Prep lasts 30 seconds. A round ends when one team is eliminated, with no
+mid-round respawn. A team wins after at least three round wins and a two-round
+lead; round nine is sudden death. The Ring begins closing after 45 seconds.
+Right-click the six barrels for team-neutral weapons or healing items, and
+contest the yellow center box for three stronger weapons whose pool improves in
+later rounds.
+
+This is an Arenas-inspired adaptation, not a one-to-one restoration. It does
+not yet include the original material shop, attachment upgrades, downed state,
+revives, or purchasable ability charges. See the
+[Arenas research record](docs/research/features/arena-5v5-2026-07.md) for the
+verified historical rules and intentional changes.
 
 ## Controls
 

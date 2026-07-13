@@ -95,9 +95,9 @@ lapex_legend_events:
         - define source null
         - if <[attacker]> != null:
             - define source <[attacker].shooter||<[attacker]>>
-        - if <[source]> != null && <[source].is_player||false> && <proc[lapex_legend_is_ally].context[<[owner]>|<[source]>]>:
+        - if <[source]> != null && <proc[lapex_legend_is_ally].context[<[owner]>|<[source]>]>:
             - stop
-        - if <[source]> != null && <[source].is_player||false> && <[source].has_flag[lapex.phased]>:
+        - if <[source]> != null && <[source].has_flag[lapex.phased]>:
             - stop
         - if <[proxy].has_flag[lapex.crypto_body_owner]>:
             # Protection belongs to the real combat player. Do not begin a body
@@ -283,6 +283,10 @@ lapex_legend_select:
     type: task
     definitions: id
     script:
+    - define arena_session <player.flag[lapex.arena_session]||null>
+    - if <[arena_session]> != null && <server.flag[lapex.arena.session]||null> == <[arena_session]> && <server.flag[lapex.arena.state]||lobby> != lobby:
+        - actionbar "<red>Choose your legend before the Arena match starts"
+        - stop
     - define registry <script[lapex_legend_data].data_key[legends]>
     - if !<[registry].keys.contains[<[id]>]>:
         - narrate "<red>Unknown legend. Use <white>/legend list<red>."
@@ -304,6 +308,11 @@ lapex_legend_activate:
     script:
     - if !<list[tactical|ultimate].contains[<[slot]>]>:
         - stop
+    - define arena_session <player.flag[lapex.arena_session]||null>
+    - if <[arena_session]> != null:
+        - if <server.flag[lapex.arena.session]||null> != <[arena_session]> || <server.flag[lapex.arena.state]||none> != live || <player.has_flag[lapex.arena_eliminated]>:
+            - actionbar "<yellow>Abilities unlock when the Arena round begins"
+            - stop
     - define id <player.flag[lapex.legend]||bangalore>
     - if <[id]> == crypto && <[slot]> == tactical && <player.has_flag[lapex.crypto_active]>:
         - run lapex_crypto_exit def.owner:<player> def.reason:manual
@@ -403,11 +412,11 @@ lapex_legend_is_ally:
             - define target <[deployable_owner]>
     - if <[source]> == <[target]>:
         - determine true
-    - if !<[target].is_player||false>:
-        - determine false
     - define source_team <[source].flag[lapex.team]||null>
     - if <[source_team]> != null && <[target].flag[lapex.team]||null> == <[source_team]>:
         - determine true
+    - if !<[target].is_player||false>:
+        - determine false
     - determine false
 
 # Inventory-wide check used by legend guns. Looking only at the held slot lets
@@ -423,8 +432,8 @@ lapex_player_has_weapon:
     - determine false
 
 # Area effects target a Crypto pilot's body, not the spectator camera. Return
-# the real combat player for a normal player or a current Crypto body proxy.
-# Other living entities are outside the player-only Apex combat contract.
+# the real combat actor for a normal player, a current Crypto body proxy, or a
+# session-bound Arena bot. The historical name remains for script compatibility.
 lapex_legend_combat_player:
     type: procedure
     debug: false
@@ -438,6 +447,8 @@ lapex_legend_combat_player:
     - define session <[target].flag[lapex.crypto_session]||null>
     - if <[owner]> != null && <[session]> != null && <[owner].flag[lapex.crypto_active]||null> == <[session]> && <[owner].flag[lapex.crypto_body_entity]||null> == <[target]>:
         - determine <[owner]>
+    - if <[target].has_flag[lapex.arena_bot]> && <[target].has_flag[lapex.arena_session]> && <[target].is_spawned||false>:
+        - determine <[target]>
     - determine null
 
 # Finds nearby two-block headroom with a solid floor. Teleports fall back to

@@ -233,6 +233,45 @@ Useful operator commands:
 The arena is a Minecraft adaptation of launch-era Kings Canyon. It is not a
 block-for-pixel import of the Apex map.
 
+## Arena Foundry 5v5
+
+Arena Foundry is the smaller round map. It has a red team and a blue team. Each
+team gets five places. Playtest bots fill places that joined players do not
+use, so one person can still test a full match.
+
+Join either team:
+
+```text
+/arena join red
+/arena join blue
+```
+
+Choose the main gun you want next round:
+
+```text
+/arena loadout r301
+```
+
+An operator starts the match with:
+
+```text
+/arena start
+```
+
+You wait behind the starting area for 30 seconds. You may look around, but guns
+and powers stay locked until the round starts. If you are eliminated, you watch
+the rest of that round and return for the next one.
+
+Right-click a barrel to take one reward. A barrel may help two players each
+round. The yellow box on the high middle platform gives stronger guns to three
+players. The red wall called the Ring closes toward the middle, so do not hide
+at the edge forever.
+
+The first team with at least three round wins and a two-round lead wins the
+match. Round nine decides the match. If both teams are eliminated together,
+round nine repeats until one side survives. Use `/arena leave` to return to the
+exact inventory, place, health, and team you had before joining.
+
 ## When Something Looks Wrong
 
 ### Every gun looks like a carrot
@@ -277,6 +316,8 @@ Wait for its timer. An operator can clear timers in a test range with:
 - **FOV:** field of view; the amount of the world the camera can see.
 - **Hip fire:** shooting without ADS.
 - **Magazine:** the rounds inside the gun before a reload.
+- **Ring:** the moving world border that pushes an Arena fight toward the center.
+- **Round:** one fight; eliminated players return when the next round begins.
 - **Passive:** a legend power that works by itself or from a special condition.
 - **Recoil:** camera kick after a shot.
 - **Spread:** how far a shot may move away from the center aim point.

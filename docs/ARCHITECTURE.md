@@ -25,6 +25,8 @@ admin input --> commands and validators
 
 map commands --> map registry --> terrain and POI build tasks --> world files
 
+arena command --> session/round controller --> loot + Ring + native bot actors
+
 item model ID --> generated item dispatch --> 3D model --> generated texture
 ```
 
@@ -66,6 +68,12 @@ Never solve drift by copying the whole server directory into Git.
 | `lapex_map_engine.dsc` | World lifecycle, build scheduling, common geometry, and map validation. |
 | `lapex_map_terrain.dsc` | Deterministic island terrain. |
 | `lapex_map_pois_*.dsc` | Deterministic landmark geometry. |
+| `lapex_arena_data.dsc` | Foundry bounds, spawns, loot anchors, navigation graph, cover nodes, timers, and scoring constants. |
+| `lapex_arena_map.dsc` | Foundry world lifecycle, resumable build, anti-grief rules, commands, and signatures. |
+| `lapex_arena_geometry.dsc` | Dense three-lane Foundry structures, cover, staging, and loot pads. |
+| `lapex_arena_match.dsc` | Session authority, roster snapshots, prep/live phases, elimination, Ring, scoring, restoration, and HUD. |
+| `lapex_arena_loot.dsc` | Atomic script-owned supply/care claims and Arena healing items. |
+| `lapex_arena_bots.dsc` | Session-bound native husk navigation, targeting, gunfire, Ring enforcement, and cleanup. |
 | `build_resource_pack.py` | Authoritative weapon-model map and generated model/texture design. |
 | `render_kings_canyon.py` | Read-only Anvil map renderer. |
 
@@ -166,8 +174,9 @@ untagged entity when simultaneous casts are possible.
 ## Team Contract
 
 `lapex_legend_is_ally` is the shared authority. A source is always allied with
-itself. Two players are allies only when they have the same non-empty
-`lapex.team` flag.
+itself. Two combat actors are allies only when they have the same non-empty
+`lapex.team` flag. Arena humans and bots receive the same session-specific team
+value; do not compare `red` and `blue` outside the shared procedure.
 
 Damage, scans, shields, and heals should use the shared procedure. A new task
 must not invent a second team rule.
@@ -196,6 +205,9 @@ Flags act like internal APIs between scripts.
 | Item special state | item `sentinel_amped`, item `rampage_amped`; player `a13_regen_due` | Physical item expiry or background round restoration. |
 | Private scan | `scan_token.*` | Tokenized per viewer and target. |
 | Map build | `lapex.map.v1.complete`, `lapex.map.v1.units.*` | Versioned server checkpoints. |
+| Arena map build | `lapex.arena_map.v1.complete`, `lapex.arena_map.v1.units.*` | Separate Foundry checkpoints. |
+| Arena match | server `lapex.arena.session`, `state`, `round`, `score.*`, `players.*`, `bots.*`; actor `arena_session`, `arena_team`, `arena_eliminated` | One match UUID through idempotent cleanup. |
+| Arena bot | `arena_bot`, `arena_bot_session`, `arena_bot_team`, `arena_bot_weapon`, `arena_bot_ammo` | One native actor in one live round. |
 
 When a flag becomes a cross-file contract, add it to this table.
 
@@ -244,6 +256,33 @@ resume.
 
 `build force` and `rebuild confirm` are repair paths. Do not add an unconfirmed
 command that clears map checkpoints or geometry.
+
+Kings Canyon and Arena Foundry have independent worlds and checkpoint
+namespaces. Foundry reuses the low-lag cuboid/stair primitives but owns its own
+registry, signatures, and nine build units. A match must never begin until
+`lapex.arena_map.v1.complete` exists.
+
+## Arena Match Pipeline
+
+```text
+lobby -> 30-second prep -> live -> round end
+  ^                               |
+  +-------------------------------+  until match decision
+                                  |
+                                  +-> match end -> restore and cleanup
+```
+
+Every delayed phase, Ring, and bot task receives the match UUID and rechecks
+it. Loot claims synchronously read the authoritative current session and round
+before writing their claim. Human inventory, location, health, food, potion
+effects, team, gamemode, cooldowns, and stored charges are snapshotted before
+joining. Cleanup stops linked legend queues, removes Arena entities and loot,
+restores the snapshot, and clears the session flags.
+
+Bot pathfinding is supplied by native husks through Denizen's entity `walk`,
+`look`, and `attack` commands. Denizen owns target selection and hitscan. Bots
+only choose visible enemies, use imperfect aim, share the gun registry, respect
+Dome and combat protection, and delete themselves when a stale chunk reloads.
 
 ## Resource-Pack Pipeline
 
