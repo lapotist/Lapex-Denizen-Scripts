@@ -198,8 +198,8 @@ verified historical rules and intentional changes.
 
 ## Controls
 
-- Left-click: one fire action; repeat clicks to fire again
-- Hold right-click: ADS zoom and accuracy
+- Right-click: fire; hold for automatic fire
+- Left-click: toggle ADS zoom and accuracy
 - F / swap hands: reload
 - Q / drop while holding a Lapex gun: selected legend tactical
 - Sneak + Q while holding a Lapex gun: selected legend ultimate
@@ -220,12 +220,11 @@ fire rate, damage, recoil, spread, range, and pellets are editable in
 `scripts/apex_weapon_data.dsc`. Item materials and model IDs are in
 `scripts/apex_weapon_items.dsc`.
 
-Every physical left-click produces one fire action. Action locks enforce each
-gun's configured cadence, including fractional-tick rates. A vanilla client
-does not report held or released left-click while aiming at air or an entity, so
-server-only true hold-to-fire would require remapped controls or a client mod.
-Lapex keeps left-click fire and right-click ADS, prioritizing one-click/one-shot
-behavior over an inferred timer that unloads extra rounds after a tap.
+Lapex remaps firing to the carrot-on-a-stick right-click use channel, which the
+client repeats while held. The first packet fires one automatic round; a second
+packet inside the six-tick probe confirms the hold before continuous fire can
+start. Fractional-tick cadence still enforces each gun's configured RPM.
+Left-click is a discrete ADS toggle, avoiding unreliable release inference.
 
 Legend cooldowns are stored as expiring player flags, persist through weapon
 swaps and legend changes, and can be cleared by an admin with
@@ -270,7 +269,7 @@ Rampart's Modded Loader, and Lifeline's Combat Glide and D.O.C. Halo.
 
 - Automatic, semi-automatic, burst, spin-up, and charged trigger paths
 - Multi-pellet shotgun patterns, horizontal Mastiff spread, and Triple Take
-- Camera-only recoil, hip-fire bloom, held ADS zoom/accuracy, head/body/leg hits
+- Camera-only recoil, hip-fire bloom, toggled ADS zoom/accuracy, head/body/leg hits
 - Distance-scaled Charge Rifle damage
 - Magazine and shell-by-shell reloads; Bocek automatically nocks its next arrow
 - Hemlok Breach Charge with radial falloff and its own cooldown

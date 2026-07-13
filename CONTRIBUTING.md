@@ -114,7 +114,7 @@ Lapex arena validation passed: 9 units, 10 unique spawns, 6 mirrored loot anchor
 Arena match validation passed: phase contract, score paths, 5v5 spawns, loadout items, and integrations.
 Arena loot smoke passed: six atomic bins, one progressive care box, and standard rewards.
 Arena bot smoke passed: 5v5 spawns, navigation graph, and four registry-backed loadouts.
-Arena bot runtime smoke passed: ten native bots spawned, held natural movement, acquired targets, and fired.
+Arena bot runtime smoke passed: ten native bots left spawn, acquired cross-team targets, held combat distance, and fired.
 Lapex deployable smoke passed: native proxies, extras, register, replace, and cleanup.
 Lapex Dome geometry smoke passed: upper shell, both directions, internal shot, and lower-half rejection.
 Lapex charge smoke passed: due ordering, charge cap, and test-flag rollback.

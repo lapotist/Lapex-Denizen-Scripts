@@ -120,7 +120,7 @@ lapex_validate:
     - define ids <script[lapex_weapon_data].data_key[all_ids]>
     - define failures 0
     - narrate "<yellow>Lapex validation started for <[ids].size> guns..."
-    - foreach <list[lapex_weapon_trigger|lapex_weapon_auto|lapex_weapon_cadence_step|lapex_weapon_recoil_direction|lapex_weapon_ads_monitor|lapex_weapon_ads_cancel]> as:required_script:
+    - foreach <list[lapex_weapon_trigger|lapex_weapon_auto|lapex_weapon_cadence_step|lapex_weapon_recoil_direction|lapex_weapon_ads_toggle|lapex_weapon_ads_cancel]> as:required_script:
         - if <script[<[required_script]>]||null> == null:
             - narrate "<red>[Lapex] Missing weapon input runtime: <[required_script]>"
             - define failures <[failures].add[1]>

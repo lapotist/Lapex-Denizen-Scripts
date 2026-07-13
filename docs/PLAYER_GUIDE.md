@@ -32,9 +32,9 @@ Hold the gun in your main hand. The last lore line shows its controls.
 
 | What you want to do | Control |
 | --- | --- |
-| Shoot | Left-click |
-| Shoot again | Let go, then left-click again |
-| Aim down sights, called ADS | Hold right-click |
+| Shoot | Right-click |
+| Keep an automatic gun firing | Hold right-click |
+| Turn ADS on or off | Left-click once |
 | Reload | Press F, the swap-hands key |
 | Use a special gun charge | Sneak and press F on a supported gun |
 | Use your tactical power | Press Q while holding a Lapex gun |
@@ -45,20 +45,21 @@ hand.
 
 ## Shooting
 
-Point at a living target and left-click.
+Point at a living target and right-click. Keep holding right-click for an
+automatic gun.
 
 - The gun shoots from the camera.
 - A colored tracer shows the shot path.
 - A hit near the head deals more damage.
 - A hit near the legs deals less damage.
 - Shotguns send more than one pellet.
-- One left-click spends one round, except a gun whose real mode is a burst.
+- Burst guns fire their listed burst when their trigger action is accepted.
 
-Plain Minecraft tells the server when you press left-click, but not when you
-keep holding or let go while aiming at a creature or the air. Lapex therefore
-does not guess. Click again for another automatic-gun round. This prevents one
-small click from firing several bullets. True hold-to-fire needs a client mod or
-different controls; right-click remains hold-to-ADS.
+Plain Minecraft does not report a useful held-left-click state while aiming at
+a creature or the air. It does repeat right-click use packets for the Lapex gun
+item, so right-click is the firing control and can support held automatic fire.
+A quick tap fires one automatic round; a repeated packet confirms that you are
+holding the button before the rest of the magazine can continue.
 
 Recoil moves the camera up and a little sideways. It does not move your feet,
 change your speed, or teleport you. If your body changes place when you shoot,
@@ -66,12 +67,12 @@ stop testing and report it as a bug.
 
 ## Aiming Down Sights
 
-Hold right-click to zoom in and make the shot spread smaller. Let go to return
-to the normal view.
+Left-click once to zoom in and make the shot spread smaller. Left-click again
+to return to the normal view.
 
 Sneaking by itself does not improve gun accuracy. It is only a modifier for
-some legend and special-gun powers. This keeps ADS predictable: right-click is
-the one aiming control.
+some legend and special-gun powers. ADS is stored only for the gun in your hand
+and is also cleared by reloading, changing items, dying, or changing worlds.
 
 ## Reloading
 
@@ -285,15 +286,16 @@ exact inventory, place, health, and team you had before joining.
 The resource pack is off, is the wrong version, or did not finish loading. Turn
 on the 26.1.2 Lapex pack and reconnect.
 
-### Left-click does not shoot
+### Right-click does not shoot
 
 Make sure the item is a real Lapex gun. Try `/lapex give r301` as an operator.
 Wait for the current reload or gun action to finish. Then check the server console.
 
-### Right-click does not stay zoomed
+### ADS does not turn off
 
-Keep holding right-click. The server refreshes ADS from repeated use input. Test
-with the carrot-on-a-stick Lapex item, not an old manually renamed item.
+Left-click the held gun once more. Changing items or pressing F to reload also
+clears ADS and restores the normal field of view. Test with a real Lapex item,
+not an old manually renamed item.
 
 ### Q drops the item
 
@@ -314,7 +316,7 @@ Wait for its timer. An operator can clear timers in a test range with:
 
 ## Small Word List
 
-- **ADS:** aiming down sights; hold right-click to zoom and tighten shots.
+- **ADS:** aiming down sights; left-click toggles zoom and tighter shots.
 - **Ally:** a player on your Lapex team.
 - **Cooldown:** the wait before a power can be used again.
 - **Damage:** health taken away by a hit.

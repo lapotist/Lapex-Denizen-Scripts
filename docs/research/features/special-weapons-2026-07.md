@@ -44,9 +44,10 @@ weapon direction. Values not stated on those pages are labeled tuning.
 
 ## Input and Movement Invariant
 
-Left-click fires. Right-click alone holds ADS. Recoil sends relative yaw and
-pitch camera movement; it must never teleport the shooter or change shooter
-velocity. A full-magazine stationary test is required after every recoil edit.
+Right-click fires and repeats while held. Left-click toggles ADS. Recoil sends
+relative yaw and pitch camera movement; it must never teleport the shooter or
+change shooter velocity. A full-magazine stationary test is required after
+every recoil edit.
 
 ## Known Gaps
 
@@ -58,5 +59,5 @@ velocity. A full-magazine stationary test is required after every recoil edit.
 ## Verification Status
 
 All 32 items resolve in the server validator. Item-scoped state and movement
-invariants pass static review; full-magazine recoil, ADS release, damage, and
+invariants pass static review; full-magazine recoil, ADS toggle/reset, damage, and
 tracer visibility still need a live client.

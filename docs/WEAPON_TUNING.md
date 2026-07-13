@@ -15,7 +15,7 @@ Keep the same weapon ID in all four places.
 ## Shot Flow
 
 ```text
-left-click swing
+right-click use packet
       |
       v
 validate held gun and action state
@@ -36,14 +36,15 @@ hurt target -> restore target velocity -> update ammo display
 The engine saves the eye location before recoil. The ray uses that saved aim, so
 the current shot does not jump twice when the camera kick is sent.
 
-For automatic guns, one `ARM_SWING` spends at most one round. The vanilla client
-does not send held/released attack state while aiming at air or an entity, and
-Paper's `Input` exposes movement, jump, sneak, and sprint only. A grace timer
-therefore cannot distinguish a tap from a hold and must not emit extra rounds.
-Players repeat physical clicks; `action_lock` caps accepted presses at the
-configured RPM. Fractional tick remainder is carried between accepted shots and
-bursts so rates such as 810 RPM alternate integer delays instead of becoming
-600 RPM. Server-controlled Arena bots use the same cadence procedure.
+Lapex uses carrot-on-a-stick right-click input because the client repeats those
+use packets while the button is held. The first packet fires one automatic round
+and arms a six-tick probe. Only a later packet inside that window confirms the
+hold and refreshes the trigger lease. One auto loop then owns the magazine and
+stops when that lease is no longer refreshed. Semi, burst, and charge actions
+still pass through their own locks. Fractional tick remainder is carried between
+shots and bursts so rates such as 810 RPM alternate integer delays instead of
+becoming 600 RPM.
+Server-controlled Arena bots use the same cadence procedure.
 
 ## Shared Numbers
 
@@ -113,17 +114,18 @@ measured approximation unless a current, repeatable source provides exact data.
 
 ## ADS
 
-Carrot-on-a-stick use packets refresh a short `lapex.ads` flag. While the flag
-matches the held gun:
+One left-click toggles ADS on. The next left-click toggles it off. While the
+weapon-scoped `lapex.ads` flag matches the held gun:
 
 - FOV multiplier is `0.72`;
 - `ads_spread` replaces `hip_spread`;
 - shotgun pellet spread is multiplied by `0.45`.
 
-A single monitor watches the refreshed flag and held item. When refresh packets
-stop, the monitor clears ADS and restores FOV to `1`. Item changes, join, quit,
-death, respawn, and script reloads also reset FOV, so a cancelled delayed queue
-cannot leave the camera zoomed.
+ADS does not use a release timer. Item changes, reloads, world changes, join,
+quit, death, respawn, and script reloads all call the same cancellation task.
+Denizen's `fov_multiplier` mechanism must be sent with no value to restore the
+client default. Sending `fov_multiplier:1` leaves a packet-level override and
+must not be used as cleanup.
 
 ## Tracers
 

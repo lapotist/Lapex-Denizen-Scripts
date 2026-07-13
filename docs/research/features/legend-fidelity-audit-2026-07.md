@@ -56,7 +56,7 @@ approximations unless a current patch note below supports them.
 
 ## July Implementation Checkpoint
 
-- Camera-only recoil, right-click ADS, special-gun state, and improved tracers
+- Camera-only recoil, left-click toggle ADS, special-gun state, and improved tracers
   passed static and server validation. The stationary live-client test remains pending.
 - Crypto now uses exact session-bound native proxies, shotgun damage collection,
   reconnect origin recovery, and body-aware scan/support selectors.

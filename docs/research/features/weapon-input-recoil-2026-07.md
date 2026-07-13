@@ -3,16 +3,15 @@
 ## Status
 
 - Research date: 2026-07-13
-- Scope: left-click firing cadence and horizontal recoil direction
+- Scope: weapon input, firing cadence, ADS cleanup, and horizontal recoil direction
 - Apex season or event: Season 29 / Overclocked
 - Fidelity goal: measured direction patterns with honest input and 20 TPS limits
 
 ## Player Story
 
-Left-click should fire one action without turning a tap into a hidden burst.
-Recoil should move only the camera, with a repeatable shape that a player can
-learn. True hold-to-fire is desirable, but only if the server can know both the
-press and release state.
+Right-click should support held automatic fire. Left-click should provide a
+discrete ADS toggle that cannot strand the player's field of view. Recoil should
+move only the camera, with a repeatable shape that a player can learn.
 
 `RPM` means rounds per minute. A gun at 600 RPM fires ten bullets each second.
 Minecraft runs twenty server ticks each second, so that gun fires once every two
@@ -27,15 +26,27 @@ the button remains down, the client continues real-block destruction, but it
 does not send a general held or release state for air or entity aim. Paper's
 `Input` exposes forward, backward, left, right, jump, sneak, and sprint only.
 
-A resource pack cannot add network input. A server timer also cannot tell a tap
-from a hold: it would recreate the reported bug by firing extra rounds after one
-click. The server-only decision is therefore one automatic round per physical
-left-click, capped by registry RPM. Exact hold-to-fire needs either a client mod
-that reports attack state or a control remap that uses right-click item use;
-Lapex preserves the requested right-click ADS mapping for now.
+A resource pack cannot add network input. A server timer also cannot tell a
+left-click tap from a hold. Lapex therefore uses the available control remap:
+right-click item-use packets refresh a short automatic-trigger lease, while a
+discrete left-click toggles ADS. The lease has a small release tail because the
+server learns that the button was released only when repeated packets stop.
+The first packet fires one round but does not start continuous fire. A second
+packet inside the six-tick probe window confirms the hold, preventing an
+ordinary tap from being interpreted as a burst.
+
+The installed Denizen runtime documents a second important constraint:
+`fov_multiplier` with no value restores the client's normal FOV. A value of `1`
+is still an override and is not the reset operation.
 
 ## Sources
 
+- [Denizen PlayerTag source](https://github.com/DenizenScript/Denizen/blob/dev/plugin/src/main/java/com/denizenscript/denizen/objects/PlayerTag.java),
+  checked 2026-07-13. The `fov_multiplier` mechanism explicitly uses an empty
+  value to reset its packet override.
+- [Denizen block/air click event](https://meta.denizenscript.com/Docs/Events/player%20right%20clicks%20block),
+  checked 2026-07-13. The event covers clicks on blocks and in air and warns
+  that duplicate events should be rate-limited.
 - [Apex Legends Wiki weapon comparison](https://apexlegends.wiki.gg/wiki/Weapon),
   checked 2026-07-13. This community-maintained table provides current fire
   modes and effective rates.
@@ -110,8 +121,9 @@ listed direction or move the player's body.
 
 ## Test Cases
 
-- [ ] Tap every automatic weapon once; exactly one bullet should leave the gun.
-- [ ] Repeat-click automatic weapons; no accepted shot may exceed registry RPM.
+- [ ] Tap every automatic weapon once; exactly one round should leave the gun.
+- [ ] Hold right-click on every automatic weapon; cadence must match registry RPM.
+- [ ] Release right-click; the automatic loop must stop when its short lease ends.
 - [ ] Fire the Nemesis once; four fast rounds should leave in one burst.
 - [ ] Click the Prowler through four bursts and verify the lock is ten ticks.
 - [ ] Repeat-click the Mozambique and verify its cap is about 202 RPM.
@@ -119,7 +131,8 @@ listed direction or move the player's body.
   left/right turns to the table above.
 - [ ] Confirm recoil changes camera yaw and pitch without changing player
   position or velocity.
-- [ ] Cancel ADS, swap items, reload scripts, die, and disconnect; camera FOV
+- [ ] Toggle ADS off, swap items, reload, change worlds, reload scripts, die,
+  and disconnect; camera FOV
   must return to normal every time.
 - [ ] Confirm the server console shows no script errors during every test.
 
@@ -128,5 +141,5 @@ listed direction or move the player's body.
 The engine now consumes `recoil_pattern`, keeps small jitter inside its sourced
 direction, and changes camera yaw/pitch only. Recoil strength is still Lapex
 tuning. Attachment cadence, Nemesis charge, and RE-45 windup/auto-trigger remain
-separate work. True held-left automatic fire is blocked by the vanilla protocol
-until controls are remapped or a client-side input channel is accepted.
+separate work. Held-left automatic fire remains blocked by the vanilla protocol;
+Lapex now uses held right-click item input instead.

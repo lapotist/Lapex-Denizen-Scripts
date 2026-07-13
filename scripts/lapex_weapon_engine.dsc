@@ -5,13 +5,14 @@ lapex_weapon_events:
     type: world
     debug: false
     events:
-        # Arm swings cover air, block, and entity attacks. The trigger task
-        # rate-limits duplicate client swings and owns every fire-mode path.
+        # Right-click owns firing because carrot-on-a-stick use packets repeat
+        # while held. Left-click is a discrete, reliable ADS toggle and never
+        # needs release inference to restore the camera.
         on player animates ARM_SWING:
         - define item <player.item_in_hand>
         - if <[item].flag[lapex.id]||null> == null:
             - stop
-        - run lapex_weapon_trigger def.item:<[item]>
+        - run lapex_weapon_ads_toggle def.item:<[item]>
         - determine cancelled
 
         # A gun swing must never also mine a block or deal vanilla melee damage.
@@ -25,13 +26,14 @@ lapex_weapon_events:
             - stop
         - determine cancelled
 
-        # Carrot-on-a-stick use packets repeat while held. Refreshing this short
-        # flag gives right-click hold ADS with a fast release and no client mod.
+        # Both use paths feed one rate-limited trigger. Automatic modes refresh
+        # a short lease on every repeated packet, so releasing right-click ends
+        # their cadence without requiring a client mod.
         on player right clicks block using:hand:
         - define item <context.item>
         - if <[item].flag[lapex.id]||null> == null:
             - stop
-        - run lapex_weapon_ads def.item:<[item]>
+        - run lapex_weapon_trigger def.item:<[item]>
         - determine cancelled
 
         on player right clicks entity:
@@ -40,7 +42,7 @@ lapex_weapon_events:
         - define item <context.item>
         - if <[item].flag[lapex.id]||null> == null:
             - stop
-        - run lapex_weapon_ads def.item:<[item]>
+        - run lapex_weapon_trigger def.item:<[item]>
         - determine cancelled
 
         # Swapping hands is the reload key. Sneak + swap activates supported
@@ -83,6 +85,7 @@ lapex_weapon_events:
         - flag player lapex.spinup:!
         - flag player lapex.spinup_ready:!
         - flag player lapex.auto_loop:!
+        - flag player lapex.auto_probe:!
         - flag player lapex.secondary:!
         - flag player lapex.reloading:!
         - wait 1t
@@ -103,14 +106,16 @@ lapex_weapon_events:
         on player respawns:
         - run lapex_weapon_reset_transient def.target:<player>
 
-        # A reload cancels delayed queues. Restore camera state first so an ADS
-        # monitor can never strand a player at the narrowed FOV.
+        on player changes world:
+        - run lapex_weapon_reset_transient def.target:<player>
+
+        # Script replacement must clear packet-level camera overrides before
+        # the old task definitions disappear.
         on pre script reload:
         - foreach <server.online_players> as:target:
             - run lapex_weapon_ads_cancel def.target:<[target]>
 
-        # Also repairs camera state on the first deployment of this monitor,
-        # when the previously loaded script had no pre-reload cleanup event.
+        # This also repairs camera state when first deploying the cleanup fix.
         on scripts loaded:
         - foreach <server.online_players> as:target:
             - run lapex_weapon_ads_cancel def.target:<[target]>
@@ -120,9 +125,12 @@ lapex_weapon_reset_transient:
     debug: false
     definitions: target
     script:
-    - foreach <list[trigger|action_lock|burst|charging|spinup|spinup_ready|auto_loop|secondary|reloading|ads|ads_token|ads_monitor|fire_phase|recoil_shot|jammed|whistler_heat|whistler_source|sentinel_amped|rampage_amped]> as:state:
+    - foreach <list[trigger|action_lock|burst|charging|spinup|spinup_ready|auto_loop|auto_probe|secondary|reloading|ads|ads_token|ads_monitor|fire_phase|recoil_shot|jammed|whistler_heat|whistler_source|sentinel_amped|rampage_amped]> as:state:
         - flag <[target]> lapex.<[state]>:!
-    - adjust <[target]> fov_multiplier:1
+    - if <[target].is_online||false>:
+        # Denizen resets its packet-level FOV override only when this mechanism
+        # has no value. A literal value of 1 is still an override, not a reset.
+        - adjust <[target]> fov_multiplier
 
 lapex_weapon_clear_item_charges:
     type: task
@@ -135,7 +143,7 @@ lapex_weapon_clear_item_charges:
         - if <[item].has_flag[lapex.rampage_amped]>:
             - inventory flag destination:<[target].inventory> slot:<[slot]> lapex.rampage_amped:!
 
-lapex_weapon_ads:
+lapex_weapon_ads_toggle:
     type: task
     debug: false
     definitions: item
@@ -143,25 +151,12 @@ lapex_weapon_ads:
     - define id <[item].flag[lapex.id]||null>
     - if <[id]> == null || <player.item_in_hand.flag[lapex.id]||null> != <[id]>:
         - stop
-    # Right-click packets refresh this short lease. The one monitor owns FOV
-    # restoration as soon as the player releases use or changes weapons.
-    - flag player lapex.ads:<[id]> expire:6t
-    - adjust <player> fov_multiplier:0.72
-    - if !<player.has_flag[lapex.ads_monitor]>:
-        - flag player lapex.ads_monitor expire:10t
-        - run lapex_weapon_ads_monitor
-
-lapex_weapon_ads_monitor:
-    type: task
-    debug: false
-    script:
-    - while <player.is_online> && <player.has_flag[lapex.ads_monitor]>:
-        - define id <player.flag[lapex.ads]||null>
-        - if <[id]> == null || <player.item_in_hand.flag[lapex.id]||null> != <[id]>:
-            - while stop
-        - flag player lapex.ads_monitor expire:10t
-        - wait 1t
+    - if <player.flag[lapex.ads]||null> == <[id]>:
+        - run lapex_weapon_ads_cancel def.target:<player>
+        - stop
     - run lapex_weapon_ads_cancel def.target:<player>
+    - flag player lapex.ads:<[id]>
+    - adjust <player> fov_multiplier:0.72
 
 lapex_weapon_ads_cancel:
     type: task
@@ -172,7 +167,7 @@ lapex_weapon_ads_cancel:
     - flag <[target]> lapex.ads_token:!
     - flag <[target]> lapex.ads_monitor:!
     - if <[target].is_online||false>:
-        - adjust <[target]> fov_multiplier:1
+        - adjust <[target]> fov_multiplier
 
 lapex_weapon_trigger:
     type: task
@@ -202,6 +197,13 @@ lapex_weapon_trigger:
         - actionbar "<red>Whistler requires Ballistic"
         - stop
     - define weapon <[registry].get[<[id]>]>
+    # The first packet only arms the probe and produces one round. A second
+    # packet inside the repeat window confirms a hold and starts refreshing the
+    # trigger lease. This keeps a single tap from becoming a hidden burst.
+    - if <[weapon].get[mode]> == auto:
+        - if <player.flag[lapex.auto_probe]||null> == <[id]>:
+            - flag player lapex.trigger:<[id]> expire:6t
+        - flag player lapex.auto_probe:<[id]> expire:6t
     - if <player.has_flag[lapex.reloading]>:
         - if <[weapon].get[reload_style]||magazine> == shell && <player.item_in_hand.flag[lapex.ammo]||0> > 0:
             - flag player lapex.reloading:!
@@ -211,9 +213,6 @@ lapex_weapon_trigger:
         - stop
     - choose <[weapon].get[mode]>:
         - case auto:
-            # Vanilla sends an attack packet for each physical press but no
-            # held/released attack state while aiming at air or an entity.
-            # Treat every press as one round and let action_lock enforce RPM.
             - run lapex_weapon_auto def.id:<[id]>
         - case burst:
             - run lapex_weapon_burst def.id:<[id]>
@@ -301,26 +300,16 @@ lapex_weapon_auto:
     debug: false
     definitions: id
     script:
-    # There is no vanilla attack-release packet for air/entity aim. Guessing a
-    # hold from a grace period turns one click into an unwanted burst, so this
-    # path deliberately consumes exactly one round per ARM_SWING packet.
     - if <player.has_flag[lapex.auto_loop]> || <player.has_flag[lapex.action_lock]>:
         - stop
     - define weapon <script[lapex_weapon_data].data_key[weapons.<[id]>]>
     - if <player.item_in_hand.flag[lapex.ammo]||0> <= 0 && !<player.has_flag[lapex.tempest]>:
         - run lapex_weapon_dry def.id:<[id]>
         - stop
-    - define rpm <[weapon].get[rpm]>
-    - if <[id]> == rampage && <player.item_in_hand.has_flag[lapex.rampage_amped]>:
-        - define rpm 390
-    - define phase <player.flag[lapex.fire_phase.<[id]>]||0.5>
-    - define cadence <proc[lapex_weapon_cadence_step].context[<[rpm]>|<[phase]>]>
     - define spinup <[weapon].get[spinup_ticks]||0>
+    - flag player lapex.auto_loop:<[id]> expire:<[spinup].add[10]>t
     - if <[spinup]> > 0 && !<player.has_flag[lapex.spinup_ready.<[id]>]>:
-        # A press starts the delayed first round. A short warm-state lease lets
-        # deliberate follow-up presses use normal cadence without re-spinning.
         - flag player lapex.action_lock expire:<[spinup]>t
-        - flag player lapex.auto_loop:<[id]> expire:<[spinup].add[5]>t
         - flag player lapex.spinup:<[id]> expire:<[spinup].add[5]>t
         - actionbar "<yellow><[weapon].get[name]> <gray>spinning up..."
         - playsound <player> sound:block.respawn_anchor.charge pitch:1.6 volume:0.45
@@ -330,13 +319,30 @@ lapex_weapon_auto:
             - flag player lapex.spinup:!
             - stop
         - flag player lapex.spinup:!
-    # Start the next-shot lock at the actual firing moment. For spin-up guns,
-    # the earlier lock protected the charge window and has just expired.
-    - flag player lapex.action_lock expire:<[cadence].get[delay]>t
-    - flag player lapex.fire_phase.<[id]>:<[cadence].get[phase]> expire:30s
-    - ~run lapex_weapon_fire_once def.id:<[id]>
+        - flag player lapex.action_lock:!
     - if <[spinup]> > 0:
         - flag player lapex.spinup_ready.<[id]> expire:10t
+    - define phase <player.flag[lapex.fire_phase.<[id]>]||0.5>
+    - define first_shot true
+    - while <player.is_online> && <player.health||0> > 0:
+        - flag player lapex.auto_loop:<[id]> expire:10t
+        - if !<[first_shot]> && <player.flag[lapex.trigger]||null> != <[id]>:
+            - while stop
+        - if <player.item_in_hand.flag[lapex.id]||null> != <[id]> || <player.has_flag[lapex.reloading]> || <player.has_flag[lapex.action_lock]> || <player.has_flag[lapex.jammed]> || <player.has_flag[lapex.phased]>:
+            - while stop
+        - if <player.item_in_hand.flag[lapex.ammo]||0> <= 0 && !<player.has_flag[lapex.tempest]>:
+            - run lapex_weapon_dry def.id:<[id]>
+            - while stop
+        - ~run lapex_weapon_fire_once def.id:<[id]>
+        - define first_shot false
+        # Rev state can expire during a hold, so cadence is re-read per round.
+        - define rpm <[weapon].get[rpm]>
+        - if <[id]> == rampage && <player.item_in_hand.has_flag[lapex.rampage_amped]>:
+            - define rpm 390
+        - define cadence <proc[lapex_weapon_cadence_step].context[<[rpm]>|<[phase]>]>
+        - define phase <[cadence].get[phase]>
+        - flag player lapex.fire_phase.<[id]>:<[phase]> expire:30s
+        - wait <[cadence].get[delay]>t
     - flag player lapex.auto_loop:!
 
 # Converts a fractional rounds-per-minute interval into integer server ticks
@@ -657,6 +663,7 @@ lapex_weapon_dry:
     - playsound <player> sound:block.dispenser.fail pitch:1.6 volume:0.65
     - actionbar "<red>0/<[weapon].get[mag]> <gray>- press <white>[F]<gray> to reload"
     - flag player lapex.trigger:!
+    - flag player lapex.auto_probe:!
 
 lapex_weapon_reload:
     type: task
@@ -664,6 +671,7 @@ lapex_weapon_reload:
     script:
     - if <player.has_flag[lapex.reloading]> || <player.has_flag[lapex.action_lock]> || <player.has_flag[lapex.secondary]> || <player.item_in_hand.flag[lapex.id]||null> != <[id]>:
         - stop
+    - run lapex_weapon_ads_cancel def.target:<player>
     - if <[id]> == a13_sentry:
         - actionbar "<red>A-13 rounds regenerate automatically"
         - stop
@@ -676,6 +684,7 @@ lapex_weapon_reload:
         - actionbar "<gold><[weapon].get[name]> <white><[ammo]><gray>/<[max_mag]> <gray>- full"
         - stop
     - flag player lapex.trigger:!
+    - flag player lapex.auto_probe:!
     - flag player lapex.reloading:<[id]> expire:10m
     - define label <[weapon].get[reload_label]||Reloading>
     - define reload_factor 1

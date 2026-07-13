@@ -67,26 +67,30 @@ Lapex arena validation passed: 9 units, 10 unique spawns, 6 mirrored loot anchor
 Arena match validation passed: phase contract, score paths, 5v5 spawns, loadout items, and integrations.
 Arena loot smoke passed: six atomic bins, one progressive care box, and standard rewards.
 Arena bot smoke passed: 5v5 spawns, navigation graph, and four registry-backed loadouts.
-Arena bot runtime smoke passed: ten native bots spawned, held natural movement, acquired targets, and fired.
+Arena bot runtime smoke passed: ten native bots left spawn, acquired cross-team targets, held combat distance, and fired.
 ```
 
 The reload is not successful if the console also shows an invalid event, tag,
 mechanism, material, or command error.
 
 The loot and bot static smokes validate registries and contracts. The runtime
-bot smoke proves native spawning, targeting, firing, and rollback. Capacity
-clicks, a full round, a five-minute tick soak, and ten real clients remain
-separate live tests; do not claim those from a static smoke result.
+bot smoke starts all ten actors on their real pads, requires every actor to
+cross its spawn wall, then proves cross-team targeting, firing, and rollback in
+a controlled center engagement. Its activity line also reports how many actors
+needed bounded doorway recovery. Capacity clicks, a full round, a five-minute
+tick soak, and ten real clients remain separate live tests; do not claim those
+from a static smoke result.
 
 ## Shooting Checklist
 
-- [ ] Left-click fires in air, at a block, and at an entity.
+- [ ] Right-click fires in air, at a block, and at an entity.
 - [ ] A gun swing does not mine a block or add vanilla melee damage.
-- [ ] Tapping an automatic gun once spends exactly one round.
-- [ ] Holding left-click does not invent extra rounds after its one press.
-- [ ] Repeated physical clicks never exceed the configured RPM limit.
-- [ ] Right-click holds ADS; releasing it restores normal FOV quickly.
+- [ ] Tapping right-click once on an automatic gun spends exactly one round.
+- [ ] A second repeated use packet confirms held automatic fire.
+- [ ] Holding right-click never exceeds the configured RPM limit.
+- [ ] Left-click toggles ADS on and off and restores the default FOV.
 - [ ] Switching items during ADS resets FOV.
+- [ ] Reloading, dying, changing worlds, and reloading scripts reset ADS FOV.
 - [ ] F reloads without swapping the gun away.
 - [ ] Empty and non-empty reload times are different where configured.
 - [ ] Head, body, and leg damage differ correctly.
@@ -210,11 +214,12 @@ For every changed power:
 - [ ] Red and blue each use five unique safe starts with no direct spawn sightline.
 - [ ] Prep lasts 30 seconds; movement stays in the start area and guns/abilities remain locked.
 - [ ] Empty slots fill to exactly five actors on both teams.
-- [ ] `lapex_arena_bots_runtime_smoke` creates ten native actors, observes combat, and leaves no active session or bot behind.
+- [ ] `lapex_arena_bots_runtime_smoke` moves all ten actors from the real spawn pads into a lane, observes a cross-team target and gunfire, and leaves no active session or bot behind.
 - [ ] Human-to-bot, bot-to-human, and bot-to-bot friendly fire is blocked for allies.
 - [ ] Bots only shoot visible enemies and continue moving when one route is blocked.
 - [ ] Patrol movement stays near vanilla husk speed; firing bots do not slide or lunge.
-- [ ] Bot tracers, RPM, magazines, reload pauses, misses, Dome hits, and damage are readable.
+- [ ] A newly seen target gets a visible reaction window before its first shot.
+- [ ] Bot tracers, RPM, magazines, 4-8 shot groups, pauses, misses, Dome hits, and damage are readable.
 - [ ] A piloting Crypto is targeted at the body, never the spectator camera.
 - [ ] Lethal human damage enters spectator without showing the death screen.
 - [ ] Eliminated humans and bots never return during the current round.

@@ -187,7 +187,7 @@ checklist in [Testing](TESTING.md).
 
 - **Apex idea:** sense heartbeats while aiming, send a delayed wall-passing
   silence scan, and place a damageable movement-tracking Exhibit.
-- **Lapex today:** right-click ADS reports a nearby enemy distance, tactical
+- **Lapex today:** active ADS reports a nearby enemy distance, tactical
   silences and scans one endpoint area without health damage, and an
   undamageable particle sphere scans everyone.
 - **Status:** analogue.
@@ -221,7 +221,7 @@ checklist in [Testing](TESTING.md).
 
 - **Apex idea:** read teams and bullet drop, position Echo, launch and double
   jump to Echo, and mark enemies with a custom sniper.
-- **Lapex today:** right-click ADS shows one target's health and distance and
+- **Lapex today:** active ADS shows one target's health and distance and
   tracking a team adds 70 percent of A-13 round progress. Tactical pushes toward
   the aimed point; A-13 regenerates rounds, marks, and amplifies follow-up damage.
 - **Status:** adapted.
@@ -294,7 +294,7 @@ checklist in [Testing](TESTING.md).
 
 - **Apex idea:** raise a shield while ADS, gain sustained empty-hand sprint
   momentum, place a two-way shot-blocking dome, and call a bombardment.
-- **Lapex today:** right-click ADS blocks one hit every nine seconds, empty-hand
+- **Lapex today:** active ADS blocks one hit every nine seconds, empty-hand
   sprint grants speed, and a visible 12-second Dome stops hitscan and projectile
   attacks crossing either direction for every team. Bombardment makes random blasts.
 - **Status:** adapted, with live Dome projectile and overlap verification pending.

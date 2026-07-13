@@ -29,23 +29,28 @@ lapex_arena_loot_events:
         # The six barrels and center box contain nothing. This event owns the
         # entire interaction and identifies an anchor by exact block position.
         on player right clicks block using:hand:
+        # Paper also raises this event path for right-click-air packets. Those
+        # packets have no location, and held-fire weapons generate many of them.
+        - define clicked <context.location||null>
+        - if <[clicked]> == null:
+            - stop
         - define world_name <script[lapex_arena_data].data_key[world]||lapex_arena_foundry>
-        - if <context.location.world.name> != <[world_name]>:
+        - if <[clicked].world.name> != <[world_name]>:
             - stop
         - define box_index null
         - foreach <script[lapex_arena_data].data_key[loot_boxes]||<list>> as:raw:
             - define anchor <location[<[raw]>,<[world_name]>]>
-            - if <proc[lapex_arena_same_block].context[<context.location>|<[anchor]>]>:
+            - if <proc[lapex_arena_same_block].context[<[clicked]>|<[anchor]>]>:
                 - define box_index <[loop_index]>
                 - foreach stop
         - if <[box_index]> != null:
             - determine passively cancelled
-            - run lapex_arena_loot_claim def.kind:supply def.index:<[box_index]> def.location:<context.location>
+            - run lapex_arena_loot_claim def.kind:supply def.index:<[box_index]> def.location:<[clicked]>
             - stop
         - define care <location[<script[lapex_arena_data].data_key[care_box]||0,71,0>,<[world_name]>]>
-        - if <proc[lapex_arena_same_block].context[<context.location>|<[care]>]>:
+        - if <proc[lapex_arena_same_block].context[<[clicked]>|<[care]>]>:
             - determine passively cancelled
-            - run lapex_arena_loot_claim def.kind:care def.index:center def.location:<context.location>
+            - run lapex_arena_loot_claim def.kind:care def.index:center def.location:<[clicked]>
 
         on player consumes item:
         - define heal <context.item.flag[lapex.arena_heal]||0>

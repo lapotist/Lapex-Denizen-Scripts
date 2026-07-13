@@ -79,11 +79,11 @@ Never solve drift by copying the whole server directory into Git.
 
 ## Weapon Pipeline
 
-The arm-swing event is the one fire entry point. Separate events cancel block
-mining and vanilla melee for held guns.
+Right-click item use is the fire entry point. Arm swing toggles ADS, while
+separate events cancel block mining and vanilla melee for held guns.
 
 ```text
-ARM_SWING
+right-click use packet
    |
    v
 lapex_weapon_trigger
@@ -106,8 +106,8 @@ Important contracts:
 
 - Item flag `lapex.id` is weapon identity.
 - Item flag `lapex.ammo` belongs to that physical item.
-- Every `ARM_SWING` press produces at most one automatic round. Vanilla sends
-  no held/released attack state for air or entity aim, so never infer a hold.
+- The first automatic-use packet fires one round and arms `auto_probe`. Only a
+  repeated packet inside six ticks creates the held `trigger` lease.
 - Fractional RPM intervals carry their remainder in `fire_phase`; fixed upward
   rounding would make many weapons slower than their registry value.
 - A delayed queue rechecks the held item ID before changing ammo or state.
@@ -117,12 +117,13 @@ Important contracts:
 
 ## ADS Pipeline
 
-Right-click use input refreshes `lapex.ads` for a short time. One
-`lapex.ads_monitor` queue watches that lease and the held weapon. When either no
-longer matches, it clears ADS and restores FOV.
+One left-click toggles the weapon-scoped `lapex.ads` flag. Turning ADS off calls
+the same cancellation task used by every lifecycle cleanup path. There is no
+release timer or delayed monitor.
 
-Holding a different item, joining, quitting, and reloading scripts all restore
-FOV to `1` and clear the ADS state.
+Holding a different item, reloading, changing worlds, joining, quitting, dying,
+and reloading scripts clear ADS. Denizen restores the client default only when
+`fov_multiplier` is adjusted with no value; `fov_multiplier:1` is not a reset.
 
 ## Legend Pipeline
 
@@ -198,8 +199,8 @@ Flags act like internal APIs between scripts.
 | --- | --- | --- |
 | Player identity | `lapex.legend`, `lapex.team` | Persistent until changed. |
 | Item identity | item `lapex.id`, item `lapex.ammo` | Stored on each gun. |
-| Weapon transaction | `trigger`, `auto_loop`, `fire_phase`, `recoil_shot`, `spinup`, `spinup_ready`, `action_lock`, `burst`, `charging`, `reloading`, `secondary` | Short action state. |
-| View | `ads`, `ads_monitor` | Refreshed while ADS is held. |
+| Weapon transaction | `trigger`, `auto_probe`, `auto_loop`, `fire_phase`, `recoil_shot`, `spinup`, `spinup_ready`, `action_lock`, `burst`, `charging`, `reloading`, `secondary` | Short action state. |
+| View | `ads` | Toggled for the currently held gun. |
 | Shared combat | `legend_protected`, `pylon_protected`, `phased`, `legend_silenced`, `tempest`, `amped_cover` | Timed ability state. |
 | Combat telemetry | `last_target`, `last_attacker`, `last_shot_location`, `last_damage_location`, `low_health`, `threatened_by` | Short evidence for passives. |
 | Crypto session | `crypto_active`, `crypto_origin`, `crypto_gamemode`, body/drone entity, body chunk, drone health | From launch through one cleanup path. |
@@ -291,9 +292,22 @@ Dome and combat protection, and delete themselves when a stale chunk reloads.
 For native entities, Denizen's `walk speed:` is the raw movement attribute, not
 a multiplier where `1.0` means normal speed. Patrol uses `0.19`, near a vanilla
 husk's `0.23`; combat pursuit starts beyond 18 blocks and stops inside 12 to
-avoid path restarts every decision tick. Player and bot guns both call
-`lapex_weapon_cadence_step`, so fractional registry RPM must not be rounded
-independently in either loop.
+avoid path restarts every decision tick. Each roster slot first receives a
+lane-aligned exit, then graph choices prefer progress toward the opposing side.
+Behind cover, a strategic selector prefers graph edges which reduce distance
+to the nearest live opponent without granting permission to shoot through the
+wall. A per-second progress token cancels and retries stalled native paths
+instead of leaving a bot under a long navigation lock. Generic husks can still
+accept a partial path at a clear doorway, so the opening leg uses a smooth,
+slot-aligned velocity guide at normal running speed. A twelve-second,
+session-bound watchdog moves only any unresolved actor to the verified floor
+block beyond its assigned door, then returns control to graph pursuit.
+
+Target acquisition has a 7-15 tick reaction window. Bots fire readable groups
+of 4-8 rounds with 6-13 tick pauses and use a per-actor variant of the shared
+5.0 by 3.6 degree aim-error cone centered on the torso. Player and bot guns
+both call `lapex_weapon_cadence_step`, so fractional registry RPM must not be
+rounded independently in either loop.
 
 ## Resource-Pack Pipeline
 

@@ -129,17 +129,57 @@ lapex_arena_data:
         patrol_speed: 0.19
         chase_start_distance: 18
         chase_stop_distance: 12
-        navigation_lock: 20s
-        movement_flag_duration: 21s
+        navigation_lock: 12s
+        navigation_checks: 12
+        movement_flag_duration: 13s
         fallback_teleport_distance: 1.0
+        opening_watchdog: 12s
+        opening_escort_speed: 0.14
+        forward_bias: 0.8
+        pursuit_bias: 0.9
+        aim_height: 0.52
+        aim_yaw_error: 5.0
+        aim_pitch_error: 3.6
+        aim_error_scale_min: 0.9
+        aim_error_scale_max: 1.15
+        reaction_min_ticks: 7
+        reaction_max_ticks: 15
+        burst_min_shots: 4
+        burst_max_shots: 8
+        burst_pause_min_ticks: 6
+        burst_pause_max_ticks: 13
+
+    # Spawn rooms hide both teams from one another. Give every roster slot a
+    # lane-aligned first goal so random graph traversal cannot send a bot back
+    # across its own room before it has entered the playable lanes.
+    bot_opening_nodes:
+        red:
+        - red_west_gate_outer
+        - red_west_gate_inner
+        - red_center_gate
+        - red_east_gate_inner
+        - red_east_gate_outer
+        blue:
+        - blue_west_gate_outer
+        - blue_west_gate_inner
+        - blue_center_gate
+        - blue_east_gate_inner
+        - blue_east_gate_outer
 
     # Named nodes and explicit links form a small navigation graph for bots.
     # Upper nodes are walkable catwalks at Y=71; all others are ground routes.
     navigation_nodes:
-        red_spawn: 0,65,-56
-        red_west_gate: -34,65,-49
-        red_center_gate: 0,65,-49
-        red_east_gate: 34,65,-49
+        # Team pads are raised to feet Y=65, but the room floor and every exit
+        # are feet Y=64. Gate goals must sit on that walkable layer or native
+        # pathfinding treats the destination as floating above the floor.
+        red_spawn: 0,64,-56
+        red_west_gate: -34,64,-51
+        red_west_gate_outer: -36,64,-51
+        red_west_gate_inner: -32,64,-51
+        red_center_gate: 0,64,-51
+        red_east_gate: 34,64,-51
+        red_east_gate_inner: 32,64,-51
+        red_east_gate_outer: 36,64,-51
         north_west: -72,64,-34
         north_west_link: -48,64,-30
         north_center: 0,64,-34
@@ -156,18 +196,26 @@ lapex_arena_data:
         south_center: 0,64,34
         south_east_link: 48,64,30
         south_east: 72,64,34
-        blue_west_gate: -34,65,49
-        blue_center_gate: 0,65,49
-        blue_east_gate: 34,65,49
-        blue_spawn: 0,65,56
+        blue_west_gate: -34,64,51
+        blue_west_gate_outer: -36,64,51
+        blue_west_gate_inner: -32,64,51
+        blue_center_gate: 0,64,51
+        blue_east_gate: 34,64,51
+        blue_east_gate_inner: 32,64,51
+        blue_east_gate_outer: 36,64,51
+        blue_spawn: 0,64,56
 
     navigation_links:
     - red_spawn|red_west_gate
     - red_spawn|red_center_gate
     - red_spawn|red_east_gate
     - red_west_gate|north_west_link
+    - red_west_gate_outer|north_west_link
+    - red_west_gate_inner|north_west_link
     - red_center_gate|north_center
     - red_east_gate|north_east_link
+    - red_east_gate_inner|north_east_link
+    - red_east_gate_outer|north_east_link
     - north_west|north_west_link
     - north_west_link|north_center
     - north_center|north_east_link
@@ -183,8 +231,12 @@ lapex_arena_data:
     - south_center|south_east_link
     - south_east_link|south_east
     - south_west_link|blue_west_gate
+    - south_west_link|blue_west_gate_outer
+    - south_west_link|blue_west_gate_inner
     - south_center|blue_center_gate
     - south_east_link|blue_east_gate
+    - south_east_link|blue_east_gate_inner
+    - south_east_link|blue_east_gate_outer
     - blue_west_gate|blue_spawn
     - blue_center_gate|blue_spawn
     - blue_east_gate|blue_spawn

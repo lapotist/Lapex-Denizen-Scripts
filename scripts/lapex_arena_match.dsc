@@ -320,15 +320,17 @@ lapex_arena_restore_player:
     - run lapex_arena_cancel_ability_queues def.target:<[target]>
     - run lapex_arena_clear_player_transients def.target:<[target]>
     - inventory clear destination:<[target].inventory>
-    - foreach <[target].flag[lapex.arena_saved.inventory]||<list>> key:slot as:item:
-        - inventory set destination:<[target].inventory> origin:<[item]> slot:<[slot]>
+    # Saved inventory contents are a ListTag. Denizen only populates foreach's
+    # key definition for maps, so use the one-based loop index as the slot.
+    - foreach <[target].flag[lapex.arena_saved.inventory]||<list>> as:item:
+        - inventory set destination:<[target].inventory> origin:<[item]> slot:<[loop_index]>
     - define old_gamemode <[target].flag[lapex.arena_saved.gamemode]||survival>
     - adjust <[target]> gamemode:<[old_gamemode]>
     - define old_location <[target].flag[lapex.arena_saved.location]||null>
     - if <[old_location]> != null:
         - flag <[target]> lapex.arena_transfer expire:2s
         - teleport <[target]> <[old_location]>
-    - define old_health <[target].flag[lapex.arena_saved.health]||<[target].health_max>
+    - define old_health <[target].flag[lapex.arena_saved.health]||<[target].health_max>>
     - adjust <[target]> health:<[old_health].min[<[target].health_max>]>
     - adjust <[target]> absorption_health:<[target].flag[lapex.arena_saved.absorption]||0>
     - adjust <[target]> food_level:<[target].flag[lapex.arena_saved.food]||20>

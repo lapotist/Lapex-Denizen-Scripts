@@ -434,7 +434,9 @@ lapex_crypto_exit:
         - remove <[body]>
     - if <[owner].is_online||false>:
         - adjust <[owner]> gamemode:<[old_gamemode]>
-        - adjust <[owner]> fov_multiplier:1
+        # An empty value clears Paper's packet-level override. Setting this to
+        # 1 would leave an override registered and can strand the camera FOV.
+        - adjust <[owner]> fov_multiplier
         - if <[return_location]> != null && <[reason]> != death:
             - teleport <[owner]> <[return_location]>
         - if <[reason]> == destroyed:

@@ -10,7 +10,7 @@ apex_havoc:
         custom_model_data: 1001
     lore:
     - <gray>Assault Rifle | Energy | Full-auto
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: havoc
@@ -25,7 +25,7 @@ apex_flatline:
         custom_model_data: 1002
     lore:
     - <gray>Assault Rifle | Heavy | Full-auto
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: flatline
@@ -40,7 +40,7 @@ apex_hemlok_breach:
         custom_model_data: 1003
     lore:
     - <gray>Assault Rifle | Heavy | Silenced full-auto
-    - <dark_gray>Left-click fire | Hold right-click ADS | Sneak + F Breach
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | Sneak + F Breach
     flags:
         lapex:
             id: hemlok_breach
@@ -55,7 +55,7 @@ apex_r301:
         custom_model_data: 1004
     lore:
     - <gray>Assault Rifle | Light | Full-auto
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: r301
@@ -70,7 +70,7 @@ apex_nemesis:
         custom_model_data: 1005
     lore:
     - <gray>Assault Rifle | Energy | Four-round burst
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: nemesis
@@ -85,7 +85,7 @@ apex_alternator:
         custom_model_data: 1006
     lore:
     - <gray>Submachine Gun | Light | Full-auto
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: alternator
@@ -100,7 +100,7 @@ apex_prowler:
         custom_model_data: 1007
     lore:
     - <gray>Submachine Gun | Heavy | Five-round burst
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: prowler
@@ -115,7 +115,7 @@ apex_r99:
         custom_model_data: 1008
     lore:
     - <gray>Submachine Gun | Light | Full-auto
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: r99
@@ -130,7 +130,7 @@ apex_volt:
         custom_model_data: 1009
     lore:
     - <gray>Submachine Gun | Energy | Full-auto
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: volt
@@ -145,7 +145,7 @@ apex_car:
         custom_model_data: 1010
     lore:
     - <gray>Submachine Gun | Light / Heavy | Full-auto
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: car
@@ -160,7 +160,7 @@ apex_devotion:
         custom_model_data: 1011
     lore:
     - <gray>Light Machine Gun | Energy | Spin-up auto
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: devotion
@@ -175,7 +175,7 @@ apex_lstar:
         custom_model_data: 1012
     lore:
     - <gray>Light Machine Gun | Mythic Energy | Full-auto
-    - <dark_gray>Left-click fire | Hold right-click ADS | F cool
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F cool
     flags:
         lapex:
             id: lstar
@@ -190,7 +190,7 @@ apex_spitfire:
         custom_model_data: 1013
     lore:
     - <gray>Light Machine Gun | Light | Full-auto
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: spitfire
@@ -205,7 +205,7 @@ apex_rampage:
         custom_model_data: 1014
     lore:
     - <gray>Light Machine Gun | Heavy | Full-auto
-    - <dark_gray>Left-click fire | Hold right-click ADS | Sneak + F thermite
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | Sneak + F thermite
     flags:
         lapex:
             id: rampage
@@ -220,7 +220,7 @@ apex_g7_scout:
         custom_model_data: 1015
     lore:
     - <gray>Marksman | Light | Semi-auto
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: g7_scout
@@ -235,7 +235,7 @@ apex_triple_take:
         custom_model_data: 1016
     lore:
     - <gray>Marksman | Energy | Triple projectile
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: triple_take
@@ -250,7 +250,7 @@ apex_repeater_3030:
         custom_model_data: 1017
     lore:
     - <gray>Marksman | Heavy | Lever-action
-    - <dark_gray>Left-click fire | Hold right-click ADS | F load rounds
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F load rounds
     flags:
         lapex:
             id: repeater_3030
@@ -265,7 +265,7 @@ apex_bocek:
         custom_model_data: 1018
     lore:
     - <gray>Marksman | Arrows | Charged shot
-    - <dark_gray>Left-click fire | Hold right-click ADS
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS
     flags:
         lapex:
             id: bocek
@@ -280,7 +280,7 @@ apex_charge_rifle:
         custom_model_data: 1019
     lore:
     - <gray>Sniper Rifle | Sniper | Charged beam
-    - <dark_gray>Left-click charge | Hold right-click ADS
+    - <dark_gray>Hold right-click charge | Left-click toggle ADS
     flags:
         lapex:
             id: charge_rifle
@@ -295,7 +295,7 @@ apex_longbow:
         custom_model_data: 1020
     lore:
     - <gray>Sniper Rifle | Sniper | Semi-auto
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: longbow
@@ -310,7 +310,7 @@ apex_kraber:
         custom_model_data: 1021
     lore:
     - <gray>Sniper Rifle | Mythic | Bolt-action
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: kraber
@@ -325,7 +325,7 @@ apex_sentinel:
         custom_model_data: 1022
     lore:
     - <gray>Sniper Rifle | Sniper | Bolt-action
-    - <dark_gray>Left-click fire | Hold right-click ADS | Sneak + F amp
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | Sneak + F amp
     flags:
         lapex:
             id: sentinel
@@ -340,7 +340,7 @@ apex_eva8:
         custom_model_data: 1023
     lore:
     - <gray>Shotgun | Shells | Full-auto
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: eva8
@@ -355,7 +355,7 @@ apex_mastiff:
         custom_model_data: 1024
     lore:
     - <gray>Shotgun | Shells | Horizontal spread
-    - <dark_gray>Left-click fire | Hold right-click ADS | F load shells
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F load shells
     flags:
         lapex:
             id: mastiff
@@ -370,7 +370,7 @@ apex_mozambique:
         custom_model_data: 1025
     lore:
     - <gray>Shotgun Pistol | Shells | Three pellets
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: mozambique
@@ -385,7 +385,7 @@ apex_peacekeeper:
         custom_model_data: 1026
     lore:
     - <gray>Shotgun | Shells | Precision choke
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: peacekeeper
@@ -400,7 +400,7 @@ apex_re45_burst:
         custom_model_data: 1027
     lore:
     - <gray>Pistol | Energy | Three-round burst
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: re45_burst
@@ -415,7 +415,7 @@ apex_p2020:
         custom_model_data: 1028
     lore:
     - <gray>Pistol | Light | Semi-auto
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: p2020
@@ -430,7 +430,7 @@ apex_wingman:
         custom_model_data: 1029
     lore:
     - <gray>Pistol | Sniper | High-powered revolver
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: wingman
@@ -445,7 +445,7 @@ apex_sheila:
         custom_model_data: 1030
     lore:
     - <gray>Rampart Ultimate | Spin-up minigun
-    - <dark_gray>Left-click fire | Hold right-click ADS | F reload
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | F reload
     flags:
         lapex:
             id: sheila
@@ -461,7 +461,7 @@ apex_a13_sentry:
     lore:
     - <gray>Vantage Ultimate | Sniper's Mark
     - <dark_gray>Hits mark targets and amplify follow-up damage
-    - <dark_gray>Left-click fire | Hold right-click ADS | Rounds regenerate
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS | Rounds regenerate
     flags:
         lapex:
             id: a13_sentry
@@ -477,7 +477,7 @@ apex_whistler:
     lore:
     - <gray>Ballistic Tactical | Lock-on heat projectile
     - <dark_gray>Target overheats by firing after a hit
-    - <dark_gray>Left-click fire | Hold right-click ADS
+    - <dark_gray>Hold right-click fire | Left-click toggle ADS
     flags:
         lapex:
             id: whistler
