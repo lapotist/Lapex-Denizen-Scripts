@@ -393,6 +393,34 @@ lapex_weapon_recoil_direction:
         - define position <[position].sub[<[count]>]>
     - determine 0
 
+# Converts Minecraft's accepted health/absorption changes back to the Apex HP
+# scale used by the registry and player-facing damage numbers.
+lapex_weapon_health_delta:
+    type: procedure
+    debug: false
+    definitions: before_health|before_absorption|after_health|after_absorption
+    script:
+    - define scale <script[lapex_weapon_data].data_key[damage_scale]||0.2>
+    - define health <[before_health].sub[<[after_health]>].max[0].div[<[scale]>]>
+    - define shield <[before_absorption].sub[<[after_absorption]>].max[0].div[<[scale]>]>
+    - define remaining <[after_health].add[<[after_absorption]>].div[<[scale]>]>
+    - determine <map[health=<[health]>;shield=<[shield]>;total=<[health].add[<[shield]>]>;remaining=<[remaining]>]>
+
+# Arena eliminates without a Minecraft death screen by canceling the lethal
+# event and leaving one internal HP. Convert that sentinel to a truthful zero
+# while keeping normal health/absorption math shared everywhere else.
+lapex_weapon_resolve_damage:
+    type: procedure
+    debug: false
+    definitions: before_health|before_absorption|after_health|after_absorption|was_eliminated|is_eliminated
+    script:
+    - if !<[was_eliminated]> && <[is_eliminated]>:
+        - define scale <script[lapex_weapon_data].data_key[damage_scale]||0.2>
+        - define health <[before_health].div[<[scale]>]>
+        - define shield <[before_absorption].div[<[scale]>]>
+        - determine <map[health=<[health]>;shield=<[shield]>;total=<[health].add[<[shield]>]>;remaining=0]>
+    - determine <proc[lapex_weapon_health_delta].context[<[before_health]>|<[before_absorption]>|<[after_health]>|<[after_absorption]>]>
+
 lapex_weapon_migrate_held:
     type: task
     script:
@@ -415,6 +443,10 @@ lapex_weapon_fire_once:
     script:
     - if <player.item_in_hand.flag[lapex.id]||null> != <[id]> || <player.has_flag[lapex.reloading]> || <player.has_flag[lapex.phased]>:
         - stop
+    - define shooter_arena <player.flag[lapex.arena_session]||null>
+    - if <[shooter_arena]> != null:
+        - if <server.flag[lapex.arena.session]||null> != <[shooter_arena]> || <server.flag[lapex.arena.state]||none> != live || <player.has_flag[lapex.arena_eliminated]>:
+            - stop
     - define registry <script[lapex_weapon_data].data_key[weapons]>
     - define weapon <[registry].get[<[id]>]>
     - define max_mag <[weapon].get[mag]>
@@ -456,18 +488,21 @@ lapex_weapon_fire_once:
     # Capture click-time aim, then send only a look packet for recoil. This
     # never changes player position or velocity.
     - define eye <player.eye_location>
-    - define kick_pitch <[weapon].get[recoil_pitch].mul[-1]>
+    - define recoil_scale <script[lapex_weapon_data].data_key[recoil_scale]||1>
+    - define recoil_pitch <[weapon].get[recoil_pitch].mul[<[recoil_scale]>]>
+    - define recoil_yaw <[weapon].get[recoil_yaw].mul[<[recoil_scale]>]>
+    - define kick_pitch <[recoil_pitch].mul[-1]>
     - define recoil_pattern <[weapon].get[recoil_pattern]||<list>>
     - if <[recoil_pattern].is_empty>:
-        - define kick_yaw <util.random_decimal.sub[0.5].mul[<[weapon].get[recoil_yaw]>]>
+        - define kick_yaw <util.random_decimal.sub[0.5].mul[<[recoil_yaw]>]>
     - else:
         - define recoil_shot <player.flag[lapex.recoil_shot.<[id]>]||0>
         - define recoil_shot <[recoil_shot].add[1]>
         - flag player lapex.recoil_shot.<[id]>:<[recoil_shot]> expire:12t
         - define recoil_direction <proc[lapex_weapon_recoil_direction].context[<[id]>|<[recoil_shot]>]>
         # Keep a little per-shot variance inside the sourced left/right shape.
-        - define recoil_jitter <util.random_decimal.sub[0.5].mul[<[weapon].get[recoil_yaw]>].mul[0.16]>
-        - define kick_yaw <[weapon].get[recoil_yaw].mul[0.32].mul[<[recoil_direction]>].add[<[recoil_jitter]>]>
+        - define recoil_jitter <util.random_decimal.sub[0.5].mul[<[recoil_yaw]>].mul[0.16]>
+        - define kick_yaw <[recoil_yaw].mul[0.32].mul[<[recoil_direction]>].add[<[recoil_jitter]>]>
     - define recoil_view <[eye].with_yaw[<[eye].yaw.add[<[kick_yaw]>]>].with_pitch[<[eye].pitch.add[<[kick_pitch]>]>]>
     - look <player> yaw:<[recoil_view].yaw> pitch:<[recoil_view].pitch>
 
@@ -509,6 +544,17 @@ lapex_weapon_fire_once:
     - else if <[weapon].get[class]> == "Sniper Rifle" || <[weapon].get[class]> == Marksman:
         - define tracer_style precision
     - define tracer_center <[pellets].add[1].div[2].round>
+    # Feedback is accumulated per trigger, not per pellet. This prevents a
+    # shotgun from producing nine stacked sounds and lets the final actionbar
+    # show the damage that the server actually accepted after armor, shields,
+    # protection events, and virtual device health routing.
+    - define confirmed_damage 0
+    - define confirmed_health_damage 0
+    - define confirmed_shield_damage 0
+    - define confirmed_remaining null
+    - define confirmed_targets <list>
+    - define confirmed_headshot false
+    - define confirmed_impact null
 
     - repeat <[pellets]> as:pellet:
         - if <[weapon].get[horizontal_pellets]||false>:
@@ -546,10 +592,28 @@ lapex_weapon_fire_once:
         - define combat_target <proc[lapex_legend_combat_player].context[<[target]>]||null>
         - if <[combat_target]> != null:
             - define state_target <[combat_target]>
+        - define is_deployable <[target].has_flag[lapex.deployable_kind]>
+        - if <[is_deployable]> && <[target].has_flag[lapex.deployable_invulnerable]>:
+            - playeffect effect:electric_spark at:<[impact]> offset:0.15 quantity:6
+            - repeat next
         - if <proc[lapex_legend_is_ally].context[<player>|<[target]>]>:
             - if <[target].flag[lapex.deployable_kind]||null> == caustic_trap:
                 - run lapex_caustic_trigger def.entity:<[target]> def.session:<[target].flag[lapex.deployable_session]>
             - repeat next
+        # Arena combat is session-owned. A stale bot, a prep/match-end actor,
+        # or a player outside the active match must never reach `hurt` and must
+        # never receive a hit confirm.
+        - define arena_actor <[state_target]>
+        - define deployable_owner <[target].flag[lapex.deployable_owner]||null>
+        - define drone_owner <[target].flag[lapex.crypto_drone_owner]||null>
+        - if <[deployable_owner]> != null:
+            - define arena_actor <[deployable_owner]>
+        - else if <[drone_owner]> != null:
+            - define arena_actor <[drone_owner]>
+        - define arena_session <[arena_actor].flag[lapex.arena_session]||<[target].flag[lapex.arena_bot_session]||null>>
+        - if <[arena_session]> != null:
+            - if <server.flag[lapex.arena.session]||null> != <[arena_session]> || <server.flag[lapex.arena.state]||none> != live || <player.flag[lapex.arena_session]||null> != <[arena_session]> || <player.has_flag[lapex.arena_eliminated]> || <[arena_actor].has_flag[lapex.arena_eliminated]>:
+                - repeat next
         - if <[state_target].has_flag[lapex.legend_protected]> || <[state_target].has_flag[lapex.phased]>:
             - playeffect effect:electric_spark at:<[impact]> offset:0.15 quantity:6
             - repeat next
@@ -558,7 +622,6 @@ lapex_weapon_fire_once:
             - repeat next
 
         - define damage <[weapon].get[damage].mul[<script[lapex_weapon_data].data_key[damage_scale]>]>
-        - define is_deployable <[target].has_flag[lapex.deployable_kind]>
         - define zone body
         - if !<[is_deployable]>:
             - define height_fraction <[impact].y.sub[<[target].location.y>].div[<[target].height||1.8>]>
@@ -598,24 +661,113 @@ lapex_weapon_fire_once:
         # active. Maggie's mark and the telemetry flags feed passive scans.
         - if <player.has_flag[lapex.amped_cover]>:
             - define damage <[damage].mul[1.2]>
+
+        # Read the authoritative state on both sides of the synchronous damage
+        # event. Deployables and Crypto's drone use virtual HP; Crypto's body
+        # batches accepted pellet damage for its one-tick exit transaction.
+        - define damage_state standard
+        - define before_health <[state_target].health||0>
+        - define before_absorption <[state_target].absorption_health||0>
+        - define was_eliminated <[state_target].has_flag[lapex.arena_eliminated]>
+        - define before_virtual 0
+        - define crypto_owner <[target].flag[lapex.crypto_body_owner]||<[target].flag[lapex.crypto_drone_owner]||null>>
+        - define crypto_session <[target].flag[lapex.crypto_session]||null>
+        - if <[is_deployable]>:
+            - define damage_state deployable
+            - define before_virtual <[target].flag[lapex.deployable_health]||0>
+        - else if <[target].has_flag[lapex.crypto_body_owner]>:
+            - define damage_state crypto_body
+            - define before_virtual <[crypto_owner].flag[lapex.crypto_body_pending_damage.<[crypto_session]>]||0>
+        - else if <[target].has_flag[lapex.crypto_drone_owner]>:
+            - define damage_state crypto_drone
+            - define before_virtual <[crypto_owner].flag[lapex.crypto_drone_health]||0>
+        - define old_velocity <[target].velocity>
+        - define old_no_damage <[target].no_damage_duration||0s>
+        # Clear native immunity before the request. Clearing only afterward lets
+        # another damage source consume the bullet while the old code still
+        # played a successful hit sound.
+        - adjust <[target]> no_damage_duration:0s
+        - flag player lapex.damage_transaction expire:2t
+        - hurt <[damage]> <[target]> cause:PROJECTILE source:<player>
+        - flag player lapex.damage_transaction:!
+        - if <[target].is_spawned||false>:
+            - adjust <[target]> no_damage_duration:0s
+            - adjust <[target]> velocity:<[old_velocity]>
+        - define applied_damage 0
+        - define applied_health 0
+        - define applied_shield 0
+        - define remaining 0
+        - if <[damage_state]> == deployable:
+            - define after_virtual <[target].flag[lapex.deployable_health]||<[before_virtual]>>
+            - define applied_damage <[before_virtual].sub[<[after_virtual]>].max[0]>
+            - define applied_health <[applied_damage]>
+            - define remaining <[after_virtual]>
+        - else if <[damage_state]> == crypto_body:
+            - define after_virtual <[crypto_owner].flag[lapex.crypto_body_pending_damage.<[crypto_session]>]||<[before_virtual]>>
+            - define queued_damage <[after_virtual].sub[<[before_virtual]>].max[0]>
+            - if <[queued_damage]> <= 0:
+                - if <[target].is_spawned||false>:
+                    - adjust <[target]> no_damage_duration:<[old_no_damage]>
+                - repeat next
+            # The proxy accepted this pellet, but the real player is damaged one
+            # tick later. Preserve one source/weapon record for the flush and do
+            # not emit numeric feedback or telemetry until that damage lands.
+            - define feedback_root lapex.crypto_body_feedback.<[crypto_session]>
+            - if !<[crypto_owner].has_flag[<[feedback_root]>.shooter]>:
+                - flag <[crypto_owner]> <[feedback_root]>.shooter:<player>
+                - flag <[crypto_owner]> <[feedback_root]>.weapon_id:<[id]>
+                - flag <[crypto_owner]> <[feedback_root]>.ammo:<[ammo]>
+                - flag <[crypto_owner]> <[feedback_root]>.max_mag:<[max_mag]>
+                - flag <[crypto_owner]> <[feedback_root]>.impact:<[impact]>
+            - else:
+                - define stored_shooter <[crypto_owner].flag[<[feedback_root]>.shooter]||null>
+                - define stored_weapon <[crypto_owner].flag[<[feedback_root]>.weapon_id]||null>
+                - if <[stored_shooter]> != <player> || <[stored_weapon]> != <[id]>:
+                    - flag <[crypto_owner]> <[feedback_root]>.mixed:true
+                - else:
+                    - flag <[crypto_owner]> <[feedback_root]>.impact:<[impact]>
+            - if <[zone]> == head:
+                - flag <[crypto_owner]> <[feedback_root]>.headshot:true
+            - repeat next
+        - else if <[damage_state]> == crypto_drone:
+            - define after_virtual <[crypto_owner].flag[lapex.crypto_drone_health]||<[before_virtual]>>
+            - define applied_damage <[before_virtual].sub[<[after_virtual]>].max[0].div[<script[lapex_weapon_data].data_key[damage_scale]>]>
+            - define applied_health <[applied_damage]>
+            - define remaining <[after_virtual].div[<script[lapex_weapon_data].data_key[damage_scale]>]>
+        - else:
+            - define after_health <[state_target].health||0>
+            - define after_absorption <[state_target].absorption_health||0>
+            - define accepted <proc[lapex_weapon_resolve_damage].context[<[before_health]>|<[before_absorption]>|<[after_health]>|<[after_absorption]>|<[was_eliminated]>|<[state_target].has_flag[lapex.arena_eliminated]>]>
+            - define applied_health <[accepted].get[health]>
+            - define applied_shield <[accepted].get[shield]>
+            - define applied_damage <[accepted].get[total]>
+            - define remaining <[accepted].get[remaining]>
+        - if <[applied_damage]> <= 0:
+            - if <[target].is_spawned||false>:
+                - adjust <[target]> no_damage_duration:<[old_no_damage]>
+            - repeat next
+
+        # Telemetry and weapon debuffs are damage-confirmed. A canceled event no
+        # longer marks an enemy, reveals it, or drives a passive.
         - flag <[state_target]> lapex.last_attacker:<player> expire:10s
         - flag <[state_target]> lapex.last_damage_location:<[impact]> expire:10s
         - flag <[state_target]> lapex.threatened_by:<player> expire:4s
         - flag player lapex.last_target:<[state_target]> expire:10s
-        - if !<[is_deployable]> && <[state_target].health.sub[<[damage]>].div[<[state_target].health_max||20>]> <= 0.4:
-            - flag <[state_target]> lapex.low_health expire:6s
+        - if !<[is_deployable]>:
+            - define max_apex_health <[state_target].health_max.div[<script[lapex_weapon_data].data_key[damage_scale]||0.2>]||100>
+            - if <[remaining].div[<[max_apex_health]>]> <= 0.4:
+                - flag <[state_target]> lapex.low_health expire:6s
         - if !<[is_deployable]> && <player.flag[lapex.legend]||bangalore> == mad_maggie:
             - flag <[state_target]> lapex.maggie_mark:<player> expire:3s
             - run lapex_legend_private_outline def.viewer:<player> def.targets:<list[<[target]>]> def.duration:3s
-
-        - define old_velocity <[target].velocity>
-        - hurt <[damage]> <[target]> cause:PROJECTILE source:<player>
-        - adjust <[target]> no_damage_duration:0s
-        - adjust <[target]> velocity:<[old_velocity]>
-        - playeffect effect:crit at:<[impact]> offset:0.08 quantity:3
-        - playsound <player> sound:entity.arrow.hit_player pitch:1.45 volume:0.45
+        - define confirmed_damage <[confirmed_damage].add[<[applied_damage]>]>
+        - define confirmed_health_damage <[confirmed_health_damage].add[<[applied_health]>]>
+        - define confirmed_shield_damage <[confirmed_shield_damage].add[<[applied_shield]>]>
+        - define confirmed_remaining <[remaining]>
+        - define confirmed_targets <[confirmed_targets].include[<[state_target]>].deduplicate>
+        - define confirmed_impact <[impact]>
         - if <[zone]> == head:
-            - playsound <player> sound:block.note_block.bell pitch:2 volume:0.55
+            - define confirmed_headshot true
 
         - if !<[is_deployable]> && <[id]> == a13_sentry:
             - flag <[state_target]> lapex.vantage_mark:<player> expire:10s
@@ -627,9 +779,81 @@ lapex_weapon_fire_once:
                 - playeffect effect:electric_spark at:<[target].location.above[1]> offset:0.35 quantity:12
                 - actionbar "<gold>Whistler <red>LOCKED"
 
-    - actionbar "<gold><[weapon].get[name]> <white><[ammo]><gray>/<[max_mag]>"
+    - if <[confirmed_damage]> > 0:
+        - if <[confirmed_targets].size> > 1:
+            - define confirmed_remaining null
+        - run lapex_weapon_confirm_feedback def.shooter:<player> def.weapon_id:<[id]> def.ammo:<[ammo]> def.max_mag:<[max_mag]> def.damage:<[confirmed_damage]> def.health_damage:<[confirmed_health_damage]> def.shield_damage:<[confirmed_shield_damage]> def.remaining:<[confirmed_remaining]> def.headshot:<[confirmed_headshot]> def.impact:<[confirmed_impact]>
+    - else:
+        - actionbar "<gold><[weapon].get[name]> <white><[ammo]><gray>/<[max_mag]>"
     - if <[ammo]> <= 0 && <[weapon].get[auto_reload]||false>:
         - run lapex_weapon_reload def.id:<[id]>
+
+# One truthful feedback path serves bullets, pellets, armor, absorption, and
+# virtual devices. Values are displayed in Apex HP (Minecraft HP / 0.2).
+lapex_weapon_confirm_feedback:
+    type: task
+    debug: false
+    definitions: shooter|weapon_id|ammo|max_mag|damage|health_damage|shield_damage|remaining|headshot|impact
+    script:
+    - if <[shooter]||null> == null || !<[shooter].is_online||false> || <[damage]||0> <= 0:
+        - stop
+    - define weapon <script[lapex_weapon_data].data_key[weapons.<[weapon_id]>]||null>
+    - if <[weapon]> == null:
+        - stop
+    - if <[impact]||null> != null:
+        - if <[shield_damage]||0> > 0:
+            - playeffect effect:electric_spark at:<[impact]> offset:0.1 quantity:5
+        - if <[health_damage]||0> > 0:
+            - playeffect effect:crit at:<[impact]> offset:0.08 quantity:4
+    - define damage_text ""
+    - if <[shield_damage]||0> > 0:
+        - define damage_text "<aqua><[shield_damage].round> SHIELD"
+        - playsound <[shooter]> sound:item.shield.block pitch:1.75 volume:0.6
+    - if <[health_damage]||0> > 0:
+        - if <[damage_text]> != "":
+            - define damage_text "<[damage_text]> <dark_gray>+ "
+        - define damage_text "<[damage_text]><red><[health_damage].round> DMG"
+        - playsound <[shooter]> sound:entity.arrow.hit_player pitch:1.45 volume:0.68
+    - if <[headshot]||false>:
+        - playsound <[shooter]> sound:block.note_block.bell pitch:2 volume:0.6
+    - define remaining_text ""
+    - if <[remaining]||null> != null:
+        - define remaining_text " <dark_gray>| <gray><[remaining].round> HP"
+    - actionbar "<gold><[weapon].get[name]> <white><[ammo]><gray>/<[max_mag]> <dark_gray>| <[damage_text]><[remaining_text]>" targets:<[shooter]>
+
+# Pure calculation smoke. Runtime combat tests cover event cancellation and
+# virtual devices; this catches accidental unit or absorption regressions.
+lapex_weapon_damage_feedback_smoke:
+    type: task
+    debug: false
+    script:
+    - define failures 0
+    - define body <proc[lapex_weapon_health_delta].context[20|0|17|0]>
+    - if <[body].get[health]> != 15 || <[body].get[shield]> != 0 || <[body].get[remaining]> != 85:
+        - narrate "<red>[Lapex Damage] Health conversion failed: <[body]>"
+        - define failures <[failures].add[1]>
+    - define shield <proc[lapex_weapon_health_delta].context[20|4|20|1]>
+    - if <[shield].get[health]> != 0 || <[shield].get[shield]> != 15 || <[shield].get[remaining]> != 105:
+        - narrate "<red>[Lapex Damage] Shield conversion failed: <[shield]>"
+        - define failures <[failures].add[1]>
+    - define cancelled <proc[lapex_weapon_health_delta].context[20|0|20|0]>
+    - if <[cancelled].get[total]> != 0:
+        - narrate "<red>[Lapex Damage] Canceled-hit conversion failed: <[cancelled]>"
+        - define failures <[failures].add[1]>
+    - define eliminated <proc[lapex_weapon_resolve_damage].context[7|2|1|2|false|true]>
+    - if <[eliminated].get[health]> != 35 || <[eliminated].get[shield]> != 10 || <[eliminated].get[total]> != 45 || <[eliminated].get[remaining]> != 0:
+        - narrate "<red>[Lapex Damage] Arena elimination conversion failed: <[eliminated]>"
+        - define failures <[failures].add[1]>
+    - define feedback_root lapex.damage_smoke.<util.random_uuid>
+    - flag server <[feedback_root]>.before_health:20
+    - if <server.flag[<[feedback_root]>.before_health]||0> != 20:
+        - narrate "<red>[Lapex Damage] Dynamic Crypto feedback path failed."
+        - define failures <[failures].add[1]>
+    - flag server <[feedback_root]>:!
+    - if <[failures]> == 0:
+        - narrate "<green>Lapex damage feedback smoke passed: health, shield, remaining HP, Arena elimination, and zero-delta cancellation."
+    - else:
+        - narrate "<red>Lapex damage feedback smoke failed with <[failures]> issue(s)."
 
 lapex_weapon_render_tracer:
     type: task
@@ -774,6 +998,7 @@ lapex_whistler_mine:
             - flag <[target_state]> lapex.whistler_heat:1 expire:15s
             - flag <[target_state]> lapex.whistler_source:<player> expire:15s
             - define damage <script[lapex_weapon_data].data_key[whistler_trap_damage].mul[<script[lapex_weapon_data].data_key[damage_scale]>]>
+            - adjust <[target]> no_damage_duration:0s
             - hurt <[damage]> <[target]> cause:PROJECTILE source:<player>
             - adjust <[target]> no_damage_duration:0s
             - playeffect effect:electric_spark at:<[target].location.above[1]> offset:0.35 quantity:12
@@ -835,6 +1060,7 @@ lapex_hemlok_breach_charge:
             - foreach next
         - define falloff <element[1].sub[<[target].location.distance[<[impact]>].div[<[weapon].get[breach_radius]>].mul[0.6]>]>
         - define damage <[weapon].get[breach_damage].mul[<[falloff]>].mul[<script[lapex_weapon_data].data_key[damage_scale]>]>
+        - adjust <[target]> no_damage_duration:0s
         - hurt <[damage]> <[target]> cause:PROJECTILE source:<player>
         - adjust <[target]> no_damage_duration:0s
     - flag player lapex.secondary:!

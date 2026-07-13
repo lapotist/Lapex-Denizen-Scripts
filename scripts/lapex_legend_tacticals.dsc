@@ -353,6 +353,9 @@ lapex_crypto_body_hit:
         - stop
     - flag <[owner]> lapex.crypto_body_pending_damage.<[session]>:+:<[damage]>
     - flag <[owner]> lapex.crypto_body_pending_cause.<[session]>:<[cause]||CUSTOM>
+    - define source_key <[attacker]||environment>
+    - define sources <[owner].flag[lapex.crypto_body_pending_sources.<[session]>]||<list>>
+    - flag <[owner]> lapex.crypto_body_pending_sources.<[session]>:<[sources].include[<[source_key]>].deduplicate>
     - if <[attacker]||null> != null:
         - flag <[owner]> lapex.crypto_body_pending_attacker.<[session]>:<[attacker]>
     - if <[owner].flag[lapex.crypto_body_pending_flush]||null> == <[session]>:
@@ -369,19 +372,74 @@ lapex_crypto_body_flush:
     - define damage <[owner].flag[lapex.crypto_body_pending_damage.<[session]>]||0>
     - define attacker <[owner].flag[lapex.crypto_body_pending_attacker.<[session]>]||null>
     - define cause <[owner].flag[lapex.crypto_body_pending_cause.<[session]>]||CUSTOM>
+    - define feedback_root lapex.crypto_body_feedback.<[session]>
+    - define feedback_shooter <[owner].flag[<[feedback_root]>.shooter]||<[attacker]>>
+    - define feedback_weapon <[owner].flag[<[feedback_root]>.weapon_id]||null>
+    - define feedback_ammo <[owner].flag[<[feedback_root]>.ammo]||0>
+    - define feedback_max_mag <[owner].flag[<[feedback_root]>.max_mag]||0>
+    - define feedback_impact <[owner].flag[<[feedback_root]>.impact]||<[proxy].location||<[owner].location>>>
+    - define feedback_headshot <[owner].flag[<[feedback_root]>.headshot]||false>
+    - define feedback_mixed <[owner].flag[<[feedback_root]>.mixed]||false>
+    - define sources <[owner].flag[lapex.crypto_body_pending_sources.<[session]>]||<list>>
+    - define mixed <[feedback_mixed]>
+    - if <[sources].size> > 1:
+        - define mixed true
     - flag <[owner]> lapex.crypto_body_pending_damage.<[session]>:!
     - flag <[owner]> lapex.crypto_body_pending_attacker.<[session]>:!
     - flag <[owner]> lapex.crypto_body_pending_cause.<[session]>:!
+    - flag <[owner]> lapex.crypto_body_pending_sources.<[session]>:!
     - flag <[owner]> lapex.crypto_body_pending_flush:!
+    - flag <[owner]> <[feedback_root]>:!
     - if !<[owner].is_online||false> || <[damage]> <= 0:
         - stop
     - if <[owner].flag[lapex.crypto_active]||null> != <[session]> || <[owner].flag[lapex.crypto_body_entity]||null> != <[proxy]>:
         - stop
     - ~run lapex_crypto_exit def.owner:<[owner]> def.reason:body_hit
-    - if <[attacker]> != null && <[attacker].is_spawned||false>:
+    # Snapshot immediately around the real player damage. The one-tick proxy
+    # queue may overlap healing, shields, or another effect, none of which can
+    # be attributed to the earlier mannequin contact.
+    - define before_health <[owner].health||0>
+    - define before_absorption <[owner].absorption_health||0>
+    - define was_eliminated <[owner].has_flag[lapex.arena_eliminated]>
+    - define old_no_damage <[owner].no_damage_duration||0s>
+    - adjust <[owner]> no_damage_duration:0s
+    - if !<[mixed]> && <[attacker]> != null && <[attacker].is_spawned||false>:
+        - flag <[attacker]> lapex.damage_transaction expire:2t
         - hurt <[damage]> <[owner]> cause:<[cause]> source:<[attacker]>
+        - flag <[attacker]> lapex.damage_transaction:!
     - else:
         - hurt <[damage]> <[owner]> cause:<[cause]>
+    - adjust <[owner]> no_damage_duration:0s
+    - define after_health <[owner].health||0>
+    - define after_absorption <[owner].absorption_health||0>
+    - define accepted <proc[lapex_weapon_resolve_damage].context[<[before_health]>|<[before_absorption]>|<[after_health]>|<[after_absorption]>|<[was_eliminated]>|<[owner].has_flag[lapex.arena_eliminated]>]>
+    - define health_damage <[accepted].get[health]>
+    - define shield_damage <[accepted].get[shield]>
+    - define accepted_damage <[accepted].get[total]>
+    - define remaining <[accepted].get[remaining]>
+    - if <[accepted_damage]> <= 0:
+        - adjust <[owner]> no_damage_duration:<[old_no_damage]>
+        - stop
+    - if !<[mixed]> && <[attacker]> != null && <[attacker].is_spawned||false>:
+        - flag <[owner]> lapex.last_attacker:<[attacker]> expire:10s
+        - flag <[owner]> lapex.last_damage_location:<[feedback_impact]> expire:10s
+        - flag <[owner]> lapex.threatened_by:<[attacker]> expire:4s
+        - flag <[attacker]> lapex.last_target:<[owner]> expire:10s
+    - define max_apex_health <[owner].health_max.div[<script[lapex_weapon_data].data_key[damage_scale]||0.2>]||100>
+    - if <[remaining].div[<[max_apex_health]>]> <= 0.4:
+        - flag <[owner]> lapex.low_health expire:6s
+    - if !<[mixed]> && <[feedback_shooter]||null> != null && <[feedback_shooter].is_player||false> && <[feedback_shooter].is_online||false>:
+        - if <[feedback_shooter].flag[lapex.legend]||bangalore> == mad_maggie:
+            - flag <[owner]> lapex.maggie_mark:<[feedback_shooter]> expire:3s
+            - run lapex_legend_private_outline def.viewer:<[feedback_shooter]> def.targets:<list[<[owner]>]> def.duration:3s
+        - if <[feedback_weapon]> == a13_sentry:
+            - flag <[owner]> lapex.vantage_mark:<[feedback_shooter]> expire:10s
+        - if <[feedback_weapon]> == whistler && !<[owner].has_flag[lapex.whistler_heat]>:
+            - flag <[owner]> lapex.whistler_heat:1 expire:15s
+            - flag <[owner]> lapex.whistler_source:<[feedback_shooter]> expire:15s
+            - playeffect effect:electric_spark at:<[owner].location.above[1]> offset:0.35 quantity:12
+        - if <[feedback_weapon]> != null && <script[lapex_weapon_confirm_feedback]||null> != null:
+            - run lapex_weapon_confirm_feedback def.shooter:<[feedback_shooter]> def.weapon_id:<[feedback_weapon]> def.ammo:<[feedback_ammo]> def.max_mag:<[feedback_max_mag]> def.damage:<[accepted_damage]> def.health_damage:<[health_damage]> def.shield_damage:<[shield_damage]> def.remaining:<[remaining]> def.headshot:<[feedback_headshot]> def.impact:<[feedback_impact]>
 
 lapex_crypto_drone_hit:
     type: task
@@ -459,7 +517,9 @@ lapex_crypto_exit:
     - flag <[owner]> lapex.crypto_body_pending_damage:!
     - flag <[owner]> lapex.crypto_body_pending_attacker:!
     - flag <[owner]> lapex.crypto_body_pending_cause:!
+    - flag <[owner]> lapex.crypto_body_pending_sources:!
     - flag <[owner]> lapex.crypto_body_pending_flush:!
+    - flag <[owner]> lapex.crypto_body_feedback:!
     # Destruction uses the official recovery window. A normal recall only gets
     # a short input lock so it cannot be spammed in the same client tick.
     - if <[reason]> == destroyed:

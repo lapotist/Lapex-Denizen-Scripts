@@ -65,6 +65,17 @@ Recoil moves the camera up and a little sideways. It does not move your feet,
 change your speed, or teleport you. If your body changes place when you shoot,
 stop testing and report it as a bug.
 
+When a bullet really hurts something, the bar above your inventory shows the
+result. Red `DMG` is health damage. Aqua `SHIELD` is shield damage. The last
+number is the target's remaining HP. Shotguns add their accepted pellets into
+one number, so the screen and sound do not repeat once for every pellet.
+An eliminated Arena player shows `0 HP`; the number never displays the hidden
+Minecraft health point used to avoid opening the death screen.
+
+A hit against a protected teammate, an ended Arena round, or an invulnerable
+device does not play the normal damage-confirm sound. A spark or shield sound
+means the shot was blocked instead.
+
 ## Aiming Down Sights
 
 Left-click once to zoom in and make the shot spread smaller. Left-click again
@@ -290,6 +301,13 @@ on the 26.1.2 Lapex pack and reconnect.
 
 Make sure the item is a real Lapex gun. Try `/lapex give r301` as an operator.
 Wait for the current reload or gun action to finish. Then check the server console.
+
+### A hit makes a sound but does not seem to hurt
+
+Look for red `DMG` or aqua `SHIELD` beside the ammo count. That number is damage
+the server accepted after armor and protection. No damage number means the hit
+was blocked or the target was not part of the live Arena round. Remaining HP is
+shown after the damage number so you can verify the next shot lowers it.
 
 ### ADS does not turn off
 

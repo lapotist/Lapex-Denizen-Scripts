@@ -337,6 +337,8 @@ lapex_arena_bot_decide:
     script:
     - if !<proc[lapex_arena_bot_available].context[<[bot]>|<[session]>]>:
         - stop
+    - if <[bot].has_flag[lapex.arena_bot_smoke_slide_test]>:
+        - stop
     - if <[bot].has_flag[lapex.arena_bot_opening_escort]>:
         - stop
     - define target <proc[lapex_arena_bot_choose_target].context[<[bot]>|<[session]>]||null>
@@ -347,6 +349,9 @@ lapex_arena_bot_decide:
         - flag <[bot]> lapex.arena_bot_controlled_target:!
         - flag <[bot]> lapex.arena_bot_melee:!
         - flag <[bot]> lapex.arena_bot_target:!
+        - define patrol_goal <[bot].flag[lapex.arena_bot_nav_goal]||null>
+        - if <[patrol_goal]> != null:
+            - run lapex_arena_bot_try_slide def.bot:<[bot]> def.session:<[session]> def.goal:<[patrol_goal]>
         - run lapex_arena_bot_navigate def.bot:<[bot]> def.session:<[session]>
         - stop
     # A newly visible enemy supersedes a patrol destination. Stop the one active
@@ -405,13 +410,14 @@ lapex_arena_bot_decide:
             - flag <[bot]> lapex.arena_bot_controlled_target:<[target]>
             - attack <[bot]> target:<[target]>
             - flag <[bot]> lapex.arena_bot_moving
+        - run lapex_arena_bot_try_slide def.bot:<[bot]> def.session:<[session]> def.goal:<[target].location>
     - else if <[distance]> < <[chase_stop]>:
         - if <[bot].has_flag[lapex.arena_bot_controlled_target]>:
             - attack <[bot]> cancel
             - flag <[bot]> lapex.arena_bot_controlled_target:!
         - walk <[bot]> stop
         - flag <[bot]> lapex.arena_bot_moving:!
-    - if !<[bot].has_flag[lapex.arena_bot_firing]> && !<[bot].has_flag[lapex.arena_bot_reaction]>:
+    - if !<[bot].has_flag[lapex.arena_bot_firing]> && !<[bot].has_flag[lapex.arena_bot_reaction]> && !<[bot].has_flag[lapex.arena_bot_slide_token]>:
         - run lapex_arena_bot_fire_loop def.bot:<[bot]> def.session:<[session]>
 
 lapex_arena_bot_track_movement:
@@ -510,7 +516,7 @@ lapex_arena_bot_navigate:
     debug: false
     definitions: bot|session
     script:
-    - if <[bot].has_flag[lapex.arena_bot_stationary]> || <[bot].has_flag[lapex.arena_bot_opening_escort]>:
+    - if <[bot].has_flag[lapex.arena_bot_stationary]> || <[bot].has_flag[lapex.arena_bot_opening_escort]> || <[bot].has_flag[lapex.arena_bot_slide_token]>:
         - stop
     - define team <[bot].flag[lapex.arena_bot_team]||null>
     # Reaching the outside face of the spawn wall is the one-way opening
@@ -639,7 +645,7 @@ lapex_arena_bot_walk_safe:
     - if <[bot].flag[lapex.arena_bot_nav_goal]||null> != <[goal]> || <[bot].has_flag[lapex.arena_bot_controlled_target]>:
         - stop
     - define origin <[bot].location>
-    - define speed <script[lapex_arena_data].data_key[bot_tuning.patrol_speed]||0.19>
+    - define speed <script[lapex_arena_data].data_key[bot_tuning.patrol_speed]||0.21>
     - walk <[bot]> <[goal]> speed:<[speed]>
     - define fallback_distance <script[lapex_arena_data].data_key[bot_tuning.fallback_teleport_distance]||1.0>
     - if <[bot].location.distance[<[origin]>]> > <[fallback_distance]>:
@@ -658,6 +664,105 @@ lapex_arena_bot_walk_safe:
         - define movement_token <util.random_uuid>
         - flag <[bot]> lapex.arena_bot_movement_check:<[movement_token]> expire:<script[lapex_arena_data].data_key[bot_tuning.movement_flag_duration]||13s>
         - run lapex_arena_bot_track_movement def.bot:<[bot]> def.session:<[session]> def.goal:<[goal]> def.token:<[movement_token]>
+
+# A slide is allowed only across known flat, empty floor. Sampling halfway and
+# at the configured look-ahead catches thin cover without using teleportation
+# or relying on the native path adapter's fallback behavior.
+lapex_arena_bot_slide_path_clear:
+    type: procedure
+    debug: false
+    definitions: origin|goal
+    script:
+    - if <[origin]||null> == null || <[goal]||null> == null || <[origin].world> != <[goal].world>:
+        - determine false
+    - define probe_distance <script[lapex_arena_data].data_key[bot_tuning.slide_probe_distance]||1.15>
+    - define margin <script[lapex_arena_data].data_key[bot_tuning.slide_bounds_margin]||5>
+    - define min_x <script[lapex_arena_data].data_key[bounds.min_x].add[<[margin]>]>
+    - define max_x <script[lapex_arena_data].data_key[bounds.max_x].sub[<[margin]>]>
+    - define min_z <script[lapex_arena_data].data_key[bounds.min_z].add[<[margin]>]>
+    - define max_z <script[lapex_arena_data].data_key[bounds.max_z].sub[<[margin]>]>
+    - define level_goal <[goal].with_y[<[origin].y>]>
+    - if <[origin].distance[<[level_goal]>]> < 0.5:
+        - determine false
+    - define facing <[origin].with_pitch[0].face[<[level_goal]>]>
+    - define halfway <[facing].forward[<[probe_distance].div[2]>]>
+    - define endpoint <[facing].forward[<[probe_distance]>]>
+    - foreach <list[<[halfway]>|<[endpoint]>]> as:sample:
+        - define feet <[sample].with_y[<[origin].y>]>
+        - if <[feet].x> < <[min_x]> || <[feet].x> > <[max_x]> || <[feet].z> < <[min_z]> || <[feet].z> > <[max_z]>:
+            - determine false
+        - if <[feet].material.is_solid> || <[feet].above[1].material.is_solid> || !<[feet].below[1].material.is_solid>:
+            - determine false
+    - if !<[endpoint].find_entities[living].within[0.55].is_empty>:
+        - determine false
+    - determine true
+
+# Moderately faster traversal without the old permanent speed boost. The
+# destination is captured from the current path/target, speed decays every tick,
+# and any floor, headroom, arena-bound, or combat-state failure stops the burst.
+lapex_arena_bot_try_slide:
+    type: task
+    debug: false
+    definitions: bot|session|goal|force
+    script:
+    - if !<proc[lapex_arena_bot_available].context[<[bot]>|<[session]>]> || <server.flag[lapex.arena.state]||none> != live:
+        - stop
+    - if <[goal]||null> == null || <[goal].world> != <[bot].world> || !<[bot].has_flag[lapex.arena_bot_opening_complete]>:
+        - stop
+    - if !<[bot].has_flag[lapex.arena_bot_moving]> || <[bot].has_flag[lapex.arena_bot_opening_escort]> || <[bot].has_flag[lapex.arena_bot_stationary]> || <[bot].has_flag[lapex.arena_bot_slide_token]> || <[bot].has_flag[lapex.arena_bot_slide_cooldown]>:
+        - stop
+    - if <[bot].has_flag[lapex.arena_bot_firing]> || <[bot].has_flag[lapex.arena_bot_reloading]> || <[bot].has_flag[lapex.arena_bot_reaction]> || <[bot].has_flag[lapex.arena_bot_melee]>:
+        - stop
+    - define spawn_clearance <script[lapex_arena_data].data_key[bot_tuning.slide_spawn_clearance_z]||48>
+    - if <[bot].location.z.abs> > <[spawn_clearance]>:
+        - stop
+    - define minimum_distance <script[lapex_arena_data].data_key[bot_tuning.slide_min_goal_distance]||8>
+    - define level_goal <[goal].with_y[<[bot].location.y>]>
+    - if <[bot].location.distance[<[level_goal]>]> < <[minimum_distance]>:
+        - stop
+    - define chance <script[lapex_arena_data].data_key[bot_tuning.slide_chance]||0.18>
+    - if !<[force]||false> && <util.random_decimal> > <[chance]>:
+        - stop
+    - if !<proc[lapex_arena_bot_slide_path_clear].context[<[bot].location>|<[goal]>]>:
+        - stop
+    - define cooldown_min <script[lapex_arena_data].data_key[bot_tuning.slide_cooldown_min_ticks]||100>
+    - define cooldown_max <script[lapex_arena_data].data_key[bot_tuning.slide_cooldown_max_ticks]||160>
+    - define cooldown <util.random.int[<[cooldown_min]>].to[<[cooldown_max]>]>
+    - define duration <script[lapex_arena_data].data_key[bot_tuning.slide_duration_ticks]||8>
+    - define start_speed <script[lapex_arena_data].data_key[bot_tuning.slide_start_speed]||0.32>
+    - define end_speed <script[lapex_arena_data].data_key[bot_tuning.slide_end_speed]||0.18>
+    - define decay <[start_speed].sub[<[end_speed]>].div[<[duration].sub[1].max[1]>]>
+    - define token <util.random_uuid>
+    - flag <[bot]> lapex.arena_bot_slide_cooldown expire:<[cooldown]>t
+    - flag <[bot]> lapex.arena_bot_slide_token:<[token]> expire:<[duration].add[4]>t
+    - playsound <[bot].location> sound:entity.horse.gallop pitch:1.7 volume:0.25
+    - define speed <[start_speed]>
+    - repeat <[duration]>:
+        - if !<proc[lapex_arena_bot_available].context[<[bot]>|<[session]>]> || <server.flag[lapex.arena.session]||null> != <[session]> || <server.flag[lapex.arena.state]||none> != live || <[bot].flag[lapex.arena_bot_slide_token]||null> != <[token]>:
+            - repeat stop
+        - if !<[bot].has_flag[lapex.arena_bot_moving]> || <[bot].has_flag[lapex.arena_bot_firing]> || <[bot].has_flag[lapex.arena_bot_reloading]> || <[bot].has_flag[lapex.arena_bot_reaction]> || <[bot].has_flag[lapex.arena_bot_melee]> || <[bot].has_flag[lapex.arena_bot_opening_escort]>:
+            - define stopped <[bot].velocity.with_x[<[bot].velocity.x.mul[0.25]>].with_z[<[bot].velocity.z.mul[0.25]>]>
+            - adjust <[bot]> velocity:<[stopped]>
+            - repeat stop
+        - define origin <[bot].location>
+        - define level_goal <[goal].with_y[<[origin].y>]>
+        - if <[origin].distance[<[level_goal]>]> < <[minimum_distance]>:
+            - define stopped <[bot].velocity.with_x[<[bot].velocity.x.mul[0.25]>].with_z[<[bot].velocity.z.mul[0.25]>]>
+            - adjust <[bot]> velocity:<[stopped]>
+            - repeat stop
+        - if !<proc[lapex_arena_bot_slide_path_clear].context[<[origin]>|<[goal]>]>:
+            - define stopped <[bot].velocity.with_x[<[bot].velocity.x.mul[0.25]>].with_z[<[bot].velocity.z.mul[0.25]>]>
+            - adjust <[bot]> velocity:<[stopped]>
+            - repeat stop
+        - define facing <[origin].with_pitch[0].face[<[level_goal]>]>
+        - define impulse <[facing].forward[<[speed]>].sub[<[facing]>].with_y[-0.08]>
+        - adjust <[bot]> velocity:<[impulse]>
+        - if <[value].mod[2]> == 0:
+            - playeffect effect:cloud at:<[origin].above[0.15]> offset:0.08 quantity:2 visibility:64
+        - define speed <[speed].sub[<[decay]>].max[<[end_speed]>]>
+        - wait 1t
+    - if <[bot].is_spawned||false> && <[bot].flag[lapex.arena_bot_slide_token]||null> == <[token]>:
+        - flag <[bot]> lapex.arena_bot_slide_token:!
 
 lapex_arena_bot_available:
     type: procedure
@@ -767,7 +872,7 @@ lapex_arena_bot_fire_loop:
     - define burst_remaining <util.random.int[<[burst_min]>].to[<[burst_max]>]>
     - flag <[bot]> lapex.arena_bot_firing:<[token]>
     - repeat 120:
-        - if !<proc[lapex_arena_bot_available].context[<[bot]>|<[session]>]> || <server.flag[lapex.arena.session]||null> != <[session]> || <server.flag[lapex.arena.state]||none> != live || <[bot].flag[lapex.arena_bot_firing]||null> != <[token]> || <[bot].has_flag[lapex.arena_bot_melee]> || <[bot].has_flag[lapex.arena_bot_reaction]>:
+        - if !<proc[lapex_arena_bot_available].context[<[bot]>|<[session]>]> || <server.flag[lapex.arena.session]||null> != <[session]> || <server.flag[lapex.arena.state]||none> != live || <[bot].flag[lapex.arena_bot_firing]||null> != <[token]> || <[bot].has_flag[lapex.arena_bot_melee]> || <[bot].has_flag[lapex.arena_bot_reaction]> || <[bot].has_flag[lapex.arena_bot_slide_token]>:
             - repeat stop
         - define target <[bot].flag[lapex.arena_bot_target]||null>
         - if <[target]> == null:
@@ -856,6 +961,16 @@ lapex_arena_bot_fire_once:
     - define is_deployable <[hit].has_flag[lapex.deployable_kind]>
     - if <[state_target]> == null && !<[is_deployable]>:
         - stop
+    # The intended target was session-checked during selection, but another
+    # actor can cross the authoritative ray. Validate what was actually hit so
+    # an outsider or outsider-owned device cannot take Arena bot damage.
+    - if <[state_target]> != null:
+        - if !<proc[lapex_arena_bot_available].context[<[state_target]>|<[session]>]>:
+            - stop
+    - else:
+        - define deployable_owner <[hit].flag[lapex.deployable_owner]||null>
+        - if <[deployable_owner]> == null || !<proc[lapex_arena_bot_available].context[<[deployable_owner]>|<[session]>]>:
+            - stop
     - if <proc[lapex_legend_is_ally].context[<[bot]>|<[hit]>]>:
         - stop
     - if <[state_target]> != null:
@@ -869,11 +984,37 @@ lapex_arena_bot_fire_once:
             - define damage <[damage].mul[<[weapon].get[head_mult]>]>
         - else if <[height_fraction]> <= <script[lapex_weapon_data].data_key[leg_zone]>:
             - define damage <[damage].mul[<[weapon].get[leg_mult]>]>
+    - define before_health <[state_target].health||0>
+    - define before_absorption <[state_target].absorption_health||0>
+    - define was_eliminated <[state_target].has_flag[lapex.arena_eliminated]||false>
     - define old_velocity <[hit].velocity>
-    - hurt <[damage]> <[hit]> cause:PROJECTILE source:<[bot]>
+    - define old_no_damage <[hit].no_damage_duration||0s>
     - adjust <[hit]> no_damage_duration:0s
-    - adjust <[hit]> velocity:<[old_velocity]>
-    - playeffect effect:crit at:<[impact]> offset:0.07 quantity:3
+    - flag <[bot]> lapex.damage_transaction expire:2t
+    - hurt <[damage]> <[hit]> cause:PROJECTILE source:<[bot]>
+    - flag <[bot]> lapex.damage_transaction:!
+    - if <[hit].is_spawned||false>:
+        - adjust <[hit]> no_damage_duration:0s
+        - adjust <[hit]> velocity:<[old_velocity]>
+    # Crypto body damage is confirmed by its one-tick owner flush. Ordinary
+    # combat actors can be measured synchronously here.
+    - if <[state_target]> != null && !<[hit].has_flag[lapex.crypto_body_owner]>:
+        - define after_health <[state_target].health||0>
+        - define after_absorption <[state_target].absorption_health||0>
+        - define accepted <proc[lapex_weapon_resolve_damage].context[<[before_health]>|<[before_absorption]>|<[after_health]>|<[after_absorption]>|<[was_eliminated]>|<[state_target].has_flag[lapex.arena_eliminated]>]>
+        - define accepted_damage <[accepted].get[total]>
+        - define remaining <[accepted].get[remaining]>
+        - if <[accepted_damage]> > 0:
+            - flag <[state_target]> lapex.last_attacker:<[bot]> expire:10s
+            - flag <[state_target]> lapex.last_damage_location:<[impact]> expire:10s
+            - flag <[state_target]> lapex.threatened_by:<[bot]> expire:4s
+            - flag <[bot]> lapex.last_target:<[state_target]> expire:10s
+            - define max_apex_health <[state_target].health_max.div[<script[lapex_weapon_data].data_key[damage_scale]||0.2>]||100>
+            - if <[remaining].div[<[max_apex_health]>]> <= 0.4:
+                - flag <[state_target]> lapex.low_health expire:6s
+            - playeffect effect:crit at:<[impact]> offset:0.07 quantity:3
+        - else if <[hit].is_spawned||false>:
+            - adjust <[hit]> no_damage_duration:<[old_no_damage]>
 
 # Static smoke: data and registry only, with no entity spawn or server flags.
 lapex_arena_bots_smoke:
@@ -910,8 +1051,18 @@ lapex_arena_bots_smoke:
     - define burst_max <script[lapex_arena_data].data_key[bot_tuning.burst_max_shots]||0>
     - define pause_min <script[lapex_arena_data].data_key[bot_tuning.burst_pause_min_ticks]||0>
     - define pause_max <script[lapex_arena_data].data_key[bot_tuning.burst_pause_max_ticks]||0>
-    - if <[patrol_speed]> <= 0 || <[patrol_speed]> > 0.3:
-        - narrate "<red>[Arena Bots] Patrol speed must be a raw vanilla-scale movement attribute (0.01-0.30)."
+    - define slide_chance <script[lapex_arena_data].data_key[bot_tuning.slide_chance]||0>
+    - define slide_cooldown_min <script[lapex_arena_data].data_key[bot_tuning.slide_cooldown_min_ticks]||0>
+    - define slide_cooldown_max <script[lapex_arena_data].data_key[bot_tuning.slide_cooldown_max_ticks]||0>
+    - define slide_duration <script[lapex_arena_data].data_key[bot_tuning.slide_duration_ticks]||0>
+    - define slide_start <script[lapex_arena_data].data_key[bot_tuning.slide_start_speed]||0>
+    - define slide_end <script[lapex_arena_data].data_key[bot_tuning.slide_end_speed]||0>
+    - define slide_probe <script[lapex_arena_data].data_key[bot_tuning.slide_probe_distance]||0>
+    - define slide_goal <script[lapex_arena_data].data_key[bot_tuning.slide_min_goal_distance]||0>
+    - define slide_spawn_clearance <script[lapex_arena_data].data_key[bot_tuning.slide_spawn_clearance_z]||0>
+    - define slide_margin <script[lapex_arena_data].data_key[bot_tuning.slide_bounds_margin]||0>
+    - if <[patrol_speed]> < 0.2 || <[patrol_speed]> > 0.22:
+        - narrate "<red>[Arena Bots] Patrol speed must remain moderately below vanilla husk speed (0.20-0.22)."
         - define failures <[failures].add[1]>
     - if <[chase_stop]> < 4 || <[chase_start]> <= <[chase_stop]>:
         - narrate "<red>[Arena Bots] Chase distances need a valid stop/start hysteresis band."
@@ -925,6 +1076,15 @@ lapex_arena_bots_smoke:
     - if <[reaction_min]> <= 0 || <[reaction_max]> < <[reaction_min]> || <[burst_min]> <= 0 || <[burst_max]> < <[burst_min]> || <[pause_min]> <= 0 || <[pause_max]> < <[pause_min]>:
         - narrate "<red>[Arena Bots] Reaction and burst-pause ranges must be positive and ordered."
         - define failures <[failures].add[1]>
+    - if <[slide_chance]> < 0.08 || <[slide_chance]> > 0.25 || <[slide_cooldown_min]> < 80 || <[slide_cooldown_max]> < <[slide_cooldown_min]> || <[slide_cooldown_max]> > 200:
+        - narrate "<red>[Arena Bots] Slide chance or cooldown would make traversal absent or excessive."
+        - define failures <[failures].add[1]>
+    - if <[slide_duration]> < 4 || <[slide_duration]> > 10 || <[slide_start]> <= <[patrol_speed]> || <[slide_start]> > 0.38 || <[slide_end]> < 0.12 || <[slide_end]> > <[patrol_speed]>:
+        - narrate "<red>[Arena Bots] Slide duration and decay must stay inside the short moderate-speed envelope."
+        - define failures <[failures].add[1]>
+    - if <[slide_probe]> < 0.75 || <[slide_probe]> > 2 || <[slide_goal]> < 6 || <[slide_spawn_clearance]> < 40 || <[slide_spawn_clearance]> > 48 || <[slide_margin]> < 4 || <[slide_margin]> > 12:
+        - narrate "<red>[Arena Bots] Slide collision probe or minimum goal distance is unsafe."
+        - define failures <[failures].add[1]>
     - foreach <list[red|blue]> as:team:
         - foreach <script[lapex_arena_data].data_key[bot_opening_nodes.<[team]>]||<list>> as:opening:
             - if !<[nodes].keys.contains[<[opening]>]>:
@@ -935,12 +1095,12 @@ lapex_arena_bots_smoke:
         - if <[weapon]> == null || <[weapon].get[damage]||0> <= 0 || <[weapon].get[range]||0> <= 0 || <[weapon].get[rpm]||0> <= 0 || <[weapon].get[mag]||0> <= 0 || <[weapon].get[reload]||null> == null || <[weapon].get[tracer]||null> == null:
             - narrate "<red>[Arena Bots] Incomplete bot weapon registry entry: <[id]>"
             - define failures <[failures].add[1]>
-    - foreach <list[lapex_arena_bot_reconcile|lapex_arena_native_spawn_husk|lapex_arena_bots_fill|lapex_arena_bots_cleanup|lapex_arena_bots_loop|lapex_arena_bot_enforce_ring|lapex_arena_bot_decide|lapex_arena_bot_track_movement|lapex_arena_bot_opening_watchdog|lapex_arena_bot_walk_safe|lapex_arena_bot_choose_pursuit|lapex_arena_bot_choose_target|lapex_arena_bot_fire_loop|lapex_arena_bot_fire_once|lapex_weapon_cadence_step]> as:script_id:
+    - foreach <list[lapex_arena_bot_reconcile|lapex_arena_native_spawn_husk|lapex_arena_bots_fill|lapex_arena_bots_cleanup|lapex_arena_bots_loop|lapex_arena_bot_enforce_ring|lapex_arena_bot_decide|lapex_arena_bot_track_movement|lapex_arena_bot_opening_watchdog|lapex_arena_bot_walk_safe|lapex_arena_bot_slide_path_clear|lapex_arena_bot_try_slide|lapex_arena_bot_choose_pursuit|lapex_arena_bot_choose_target|lapex_arena_bot_fire_loop|lapex_arena_bot_fire_once|lapex_weapon_cadence_step]> as:script_id:
         - if <script[<[script_id]>]||null> == null:
             - narrate "<red>[Arena Bots] Missing script: <[script_id]>"
             - define failures <[failures].add[1]>
     - if <[failures]> == 0:
-        - narrate "<green>Arena bot smoke passed: 5v5 spawns, navigation graph, and four registry-backed loadouts."
+        - narrate "<green>Arena bot smoke passed: 5v5 spawns, navigation graph, moderate movement, guarded slides, and four registry-backed loadouts."
     - else:
         - narrate "<red>Arena bot smoke failed with <[failures]> problem(s)."
 
@@ -1010,6 +1170,34 @@ lapex_arena_bots_runtime_smoke:
     - if <[displaced]> < 10 || <[egressed]> < 10:
         - narrate "<red>[Arena Bots] Spawn egress was <[egressed]>/10; meaningful displacement was <[displaced]>/10."
         - define failures <[failures].add[1]>
+    # Prove the velocity burst itself on the authored center floor. This bypasses
+    # only the random chance; all floor, entity, boundary, state, distance, and
+    # cooldown guards still run. The decision loop yields this one actor until
+    # the measured slide finishes.
+    - define slide_distance 0
+    - define slide_bot <server.flag[lapex.arena.bots.red].first||null>
+    - if <[slide_bot]> == null || !<[slide_bot].is_spawned||false>:
+        - narrate "<red>[Arena Bots] Runtime slide test had no live actor."
+        - define failures <[failures].add[1]>
+    - else:
+        - attack <[slide_bot]> cancel
+        - walk <[slide_bot]> stop
+        - foreach <list[controlled_target|melee|target|reaction|firing|reloading|stationary|slide_token|slide_cooldown]> as:state:
+            - flag <[slide_bot]> lapex.arena_bot_<[state]>:!
+        - teleport <[slide_bot]> <location[-12,64,0,<[world_name]>]>
+        - adjust <[slide_bot]> velocity:<[slide_bot].velocity.with_x[0].with_y[0].with_z[0]>
+        - flag <[slide_bot]> lapex.arena_bot_opening_complete
+        - flag <[slide_bot]> lapex.arena_bot_moving
+        - flag <[slide_bot]> lapex.arena_bot_smoke_slide_test
+        - define slide_origin <[slide_bot].location>
+        - ~run lapex_arena_bot_try_slide def.bot:<[slide_bot]> def.session:<[session]> def.goal:<location[0,64,0,<[world_name]>]> def.force:true
+        - define slide_distance <[slide_bot].location.distance[<[slide_origin]>]>
+        - flag <[slide_bot]> lapex.arena_bot_smoke_slide_test:!
+        - flag <[slide_bot]> lapex.arena_bot_moving:!
+        - adjust <[slide_bot]> velocity:<[slide_bot].velocity.with_x[0].with_y[0].with_z[0]>
+        - if <[slide_distance]> < 1 || <[slide_distance]> > 3:
+            - narrate "<red>[Arena Bots] Guarded slide traveled <[slide_distance].round_to[2]> blocks; expected 1-3."
+            - define failures <[failures].add[1]>
     # Reset active navigation before arranging a short, symmetric engagement.
     # Ammo is restored here so firing proves the center phase, not a lucky
     # long-range shot during the egress phase.
@@ -1029,6 +1217,8 @@ lapex_arena_bots_runtime_smoke:
             - flag <[bot]> lapex.arena_bot_nav_lock:!
             - flag <[bot]> lapex.arena_bot_moving:!
             - flag <[bot]> lapex.arena_bot_movement_check:!
+            - flag <[bot]> lapex.arena_bot_slide_token:!
+            - flag <[bot]> lapex.arena_bot_slide_cooldown:!
             - flag <[bot]> lapex.arena_bot_opening_complete
             - define z <[loop_index].mul[2].sub[6]>
             - if <[team]> == red:
@@ -1077,7 +1267,7 @@ lapex_arena_bots_runtime_smoke:
         - define recovery_slot_text none
         - if !<[recovery_slots].is_empty>:
             - define recovery_slot_text <[recovery_slots].comma_separated>
-        - narrate "<gray>[Arena Bots] Activity: <white><[egressed]>/10 escaped spawn<gray>, <white><[recovered]> needed doorway recovery <dark_gray>(slots: <[recovery_slot_text]>)<gray>, <white><[cross_team_targets]> acquired enemies<gray>, <white><[fired]> fired<gray>, <white><[damaged]> took damage<gray>."
-        - narrate "<green>Arena bot runtime smoke passed: ten native bots left spawn, acquired cross-team targets, held combat distance, and fired."
+        - narrate "<gray>[Arena Bots] Activity - <white><[egressed]>/10 escaped spawn<gray>, slide <white><[slide_distance].round_to[2]> blocks<gray>, <white><[recovered]> needed doorway recovery <dark_gray>(slots <[recovery_slot_text]>)<gray>, <white><[cross_team_targets]> acquired enemies<gray>, <white><[fired]> fired<gray>, <white><[damaged]> took damage<gray>."
+        - narrate "<green>Arena bot runtime smoke passed: ten native bots left spawn, completed a guarded slide, acquired cross-team targets, held combat distance, and fired."
     - else:
         - narrate "<red>Arena bot runtime smoke failed with <[failures]> problem(s); rollback completed."

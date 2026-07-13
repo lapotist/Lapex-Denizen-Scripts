@@ -9,6 +9,10 @@
 lapex_weapon_data:
     type: data
     damage_scale: 0.2
+    # One shared presentation scale keeps sourced per-weapon recoil values and
+    # patterns relative to one another while making camera kick readable in
+    # Minecraft's wider first-person view.
+    recoil_scale: 1.55
     head_zone: 0.78
     leg_zone: 0.35
     mark_bonus: 1.15

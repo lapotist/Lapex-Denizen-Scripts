@@ -68,6 +68,11 @@ lapex_legend_passive_events:
             - define source <[damager].shooter||<[damager]>>
         - if <[source]> == null || !<[source].is_player||false> && !<[source].has_flag[lapex.arena_bot]> || <[source]> == <context.entity>:
             - stop
+        # Hitscan guns own a before/after health transaction and write these
+        # flags only after accepted damage. Do not race that truth source from
+        # inside the still-cancellable Bukkit damage event.
+        - if <[source].has_flag[lapex.damage_transaction]>:
+            - stop
         # Phase transit blocks outgoing vanilla melee and projectiles too. Gun
         # and ability entry points already reject the same shared flag.
         - if <[source].has_flag[lapex.phased]>:

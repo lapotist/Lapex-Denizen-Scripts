@@ -143,3 +143,9 @@ direction, and changes camera yaw/pitch only. Recoil strength is still Lapex
 tuning. Attachment cadence, Nemesis charge, and RE-45 windup/auto-trigger remain
 separate work. Held-left automatic fire remains blocked by the vanilla protocol;
 Lapex now uses held right-click item input instead.
+
+The 2026-07-13 playtest reported that the first camera-kick calibration was too
+small. Lapex now applies a shared `1.55` presentation scale after each weapon's
+existing pitch, yaw, and sourced direction pattern. This number is explicitly a
+Minecraft feel adjustment, not a claimed Apex internal recoil value; recheck the
+stationary full-magazine matrix before changing it again.

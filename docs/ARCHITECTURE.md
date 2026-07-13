@@ -97,9 +97,12 @@ lapex_weapon_fire_once
    |  send camera-only recoil
    |  calculate spread and pellet rays
    |  render selected tracer paths
-   |  apply team, protection, hit-zone, mark, and special rules
+   |  apply team, Arena-session, protection, hit-zone, mark, and special rules
    v
-scripted projectile damage and ammo display
+scripted projectile damage
+   |  compare health, absorption, or virtual HP before/after
+   v
+confirmed damage sound, Apex damage number, remaining HP, and ammo display
 ```
 
 Important contracts:
@@ -112,7 +115,18 @@ Important contracts:
   rounding would make many weapons slower than their registry value.
 - A delayed queue rechecks the held item ID before changing ammo or state.
 - Recoil changes yaw and pitch only. It never teleports or pushes the shooter.
+- `recoil_scale` multiplies presentation kick after per-weapon values and patterns.
 - Target velocity is restored after scripted damage to avoid unwanted knockback.
+- Hit feedback and combat telemetry require a positive authoritative HP delta.
+- A short `lapex.damage_transaction` source flag prevents generic event telemetry
+  from recording a hit before the weapon-owned comparison completes.
+- Crypto body pellets preserve source/weapon metadata and confirm from a health
+  snapshot around the delayed real-player damage. Mixed-source batches suppress
+  shooter attribution; Arena's one-HP elimination sentinel resolves to zero.
+- Arena actors accept gun damage only from the same active live session.
+- Bot rays revalidate the actor or deployable owner they actually intersect, so
+  an outsider crossing a valid line of fire cannot take Arena damage.
+- Shotgun pellets aggregate into one confirmed-damage response per trigger.
 - Hot input tasks use `debug: false`.
 
 ## ADS Pipeline
@@ -290,10 +304,10 @@ only choose visible enemies, use imperfect aim, share the gun registry, respect
 Dome and combat protection, and delete themselves when a stale chunk reloads.
 
 For native entities, Denizen's `walk speed:` is the raw movement attribute, not
-a multiplier where `1.0` means normal speed. Patrol uses `0.19`, near a vanilla
-husk's `0.23`; combat pursuit starts beyond 18 blocks and stops inside 12 to
-avoid path restarts every decision tick. Each roster slot first receives a
-lane-aligned exit, then graph choices prefer progress toward the opposing side.
+a multiplier where `1.0` means normal speed. Patrol uses `0.21`, still below a
+vanilla husk's `0.23`; combat pursuit starts beyond 18 blocks and stops inside
+12 to avoid path restarts every decision tick. Each roster slot first receives
+a lane-aligned exit, then graph choices prefer progress toward the opposing side.
 Behind cover, a strategic selector prefers graph edges which reduce distance
 to the nearest live opponent without granting permission to shoot through the
 wall. A per-second progress token cancels and retries stalled native paths
@@ -302,6 +316,13 @@ accept a partial path at a clear doorway, so the opening leg uses a smooth,
 slot-aligned velocity guide at normal running speed. A twelve-second,
 session-bound watchdog moves only any unresolved actor to the verified floor
 block beyond its assigned door, then returns control to graph pursuit.
+
+After spawn egress, a moving bot may use an eight-tick slide toward a distant
+path goal. It starts at `0.32`, decays to `0.18`, and has a random five-to-eight
+second cooldown. Every tick samples the floor, feet, headroom, nearby actors,
+and arena bounds ahead; a failed sample brakes the bot. Sliding is disabled during doorway
+escort, reaction, firing, reload, melee, and close-range holds, so it changes
+rotation pressure without changing aim accuracy or first-shot timing.
 
 Target acquisition has a 7-15 tick reaction window. Bots fire readable groups
 of 4-8 rounds with 6-13 tick pauses and use a per-actor variant of the shared

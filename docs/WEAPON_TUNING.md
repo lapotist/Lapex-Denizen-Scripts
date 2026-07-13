@@ -51,6 +51,7 @@ Server-controlled Arena bots use the same cadence procedure.
 | Key | Meaning |
 | --- | --- |
 | `damage_scale` | Converts Apex health values to Minecraft health. The current value is `0.2`. |
+| `recoil_scale` | Multiplies every weapon's camera kick after its individual values. The current playtest value is `1.55`. |
 | `head_zone` | Height fraction at or above which a hit counts as a head hit. |
 | `leg_zone` | Height fraction at or below which a hit counts as a leg hit. |
 | `mark_bonus` | Damage multiplier against a Vantage-marked target for other guns. |
@@ -58,6 +59,11 @@ Server-controlled Arena bots use the same cadence procedure.
 
 Minecraft armor applies after the scripted damage request. Test naked and
 armored targets separately.
+
+The shared recoil scale is presentation tuning, not an Apex balance statistic.
+Keep per-weapon pitch, yaw, and sourced direction patterns relative to one
+another. Change the shared scale only after firing several low-RPM and high-RPM
+weapons without moving the mouse.
 
 ## Weapon Fields
 
@@ -126,6 +132,29 @@ quit, death, respawn, and script reloads all call the same cancellation task.
 Denizen's `fov_multiplier` mechanism must be sent with no value to restore the
 client default. Sending `fov_multiplier:1` leaves a packet-level override and
 must not be used as cleanup.
+
+## Confirmed Damage Feedback
+
+The weapon engine snapshots health and absorption immediately around the
+synchronous `hurt` request. It converts only the accepted difference back to
+Apex HP by dividing by `damage_scale`. Red numbers are health damage, aqua
+numbers are absorption damage, and the final number is remaining combined HP.
+
+Do not play the normal hit-confirm sound before this comparison. Damage can be
+canceled by Arena phase ownership, teams, protection abilities, creative mode,
+or another event. Deployables and Crypto's drone use authoritative virtual HP.
+Crypto's body stores source and weapon metadata with its pellet batch, snapshots
+health immediately around the delayed real-player damage, then confirms only
+after armor and absorption. If two different sources contribute in the same
+tick, damage still applies but shooter-specific numbers, marks, and debuffs are
+suppressed rather than falsely credited to the last source.
+Arena's internal one-HP elimination sentinel is reported as zero remaining HP.
+Shotgun pellets are accumulated once per trigger before the ammo actionbar is sent.
+
+The source carries `lapex.damage_transaction` only while an authoritative
+hitscan `hurt` event is running. Generic passive telemetry yields to that token;
+the weapon, bot, or Crypto flush writes attacker and threat flags only after its
+before/after comparison succeeds.
 
 ## Tracers
 

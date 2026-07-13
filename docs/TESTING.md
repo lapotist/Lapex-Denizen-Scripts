@@ -67,7 +67,7 @@ Lapex arena validation passed: 9 units, 10 unique spawns, 6 mirrored loot anchor
 Arena match validation passed: phase contract, score paths, 5v5 spawns, loadout items, and integrations.
 Arena loot smoke passed: six atomic bins, one progressive care box, and standard rewards.
 Arena bot smoke passed: 5v5 spawns, navigation graph, and four registry-backed loadouts.
-Arena bot runtime smoke passed: ten native bots left spawn, acquired cross-team targets, held combat distance, and fired.
+Arena bot runtime smoke passed: ten native bots left spawn, completed a guarded slide, acquired cross-team targets, held combat distance, and fired.
 ```
 
 The reload is not successful if the console also shows an invalid event, tag,
@@ -75,9 +75,10 @@ mechanism, material, or command error.
 
 The loot and bot static smokes validate registries and contracts. The runtime
 bot smoke starts all ten actors on their real pads, requires every actor to
-cross its spawn wall, then proves cross-team targeting, firing, and rollback in
-a controlled center engagement. Its activity line also reports how many actors
-needed bounded doorway recovery. Capacity clicks, a full round, a five-minute
+cross its spawn wall, forces one safety-checked one-to-three-block slide on the
+authored center floor, then proves cross-team targeting, firing, and rollback in
+a controlled center engagement. Its activity line reports slide distance and
+how many actors needed bounded doorway recovery. Capacity clicks, a full round, a five-minute
 tick soak, and ten real clients remain separate live tests; do not claim those
 from a static smoke result.
 
@@ -94,6 +95,14 @@ from a static smoke result.
 - [ ] F reloads without swapping the gun away.
 - [ ] Empty and non-empty reload times are different where configured.
 - [ ] Head, body, and leg damage differ correctly.
+- [ ] A successful hit shows accepted Apex `DMG` and lower remaining HP.
+- [ ] Absorption shows aqua `SHIELD`; health damage shows red `DMG`.
+- [ ] Armor changes the displayed accepted damage, not the registry request.
+- [ ] Prep, match-end, ally, creative, phased, and protected targets produce no false hit confirm.
+- [ ] An Arena elimination shows `0 HP`, never the internal one-HP sentinel.
+- [ ] Crypto body damage confirms after the pilot returns and includes armor or shield reduction.
+- [ ] Same-tick Crypto body crossfire applies damage without crediting the full batch to one shooter.
+- [ ] Shotguns show one aggregated damage result instead of one sound per pellet.
 - [ ] An ally is not hurt by team-aware gunfire.
 - [ ] A phased or protected target is not hurt.
 - [ ] Shotgun pellet patterns and damage are plausible.
@@ -113,6 +122,20 @@ This test protects the original shooting bug from returning.
 
 Pass condition: only yaw and pitch change because of recoil. Position must not
 become `0, 0, 0`, and the script must not add velocity.
+
+The shared recoil scale is currently `1.55`. Test at least the R-99, R-301,
+Flatline, Wingman, and Kraber. The R-99 must feel readable without making one
+magazine impossible to control, and the Kraber must not force the camera past
+Minecraft's pitch limit.
+
+For bots, verify patrol speed stays near a normal husk rather than the original
+excessive movement. A slide must be a short burst only after spawn egress, must
+brake at blocks, entities, missing floor, or Arena bounds, and must never overlap
+reaction, firing, reload, melee, or the close-range firing hold.
+
+Walk a non-Arena player and an outsider-owned deployable across a bot's firing
+line. The bot may keep fighting its Arena target, but the crossed ray must not
+damage either outsider.
 
 ## Resource-Pack Checklist
 

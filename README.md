@@ -225,6 +225,11 @@ client repeats while held. The first packet fires one automatic round; a second
 packet inside the six-tick probe confirms the hold before continuous fire can
 start. Fractional-tick cadence still enforces each gun's configured RPM.
 Left-click is a discrete ADS toggle, avoiding unreliable release inference.
+Successful hits show accepted Apex damage and remaining HP beside the ammo
+count. Shield damage is aqua, health damage is red, and canceled or protected
+hits do not emit the normal damage-confirm sound. A shared `1.55` camera-kick
+scale makes recoil clearer while preserving every weapon's relative values and
+left/right pattern.
 
 Legend cooldowns are stored as expiring player flags, persist through weapon
 swaps and legend changes, and can be cleared by an admin with

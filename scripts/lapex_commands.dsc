@@ -119,8 +119,12 @@ lapex_validate:
     - define registry <script[lapex_weapon_data].data_key[weapons]>
     - define ids <script[lapex_weapon_data].data_key[all_ids]>
     - define failures 0
+    - define recoil_scale <script[lapex_weapon_data].data_key[recoil_scale]||0>
+    - if <[recoil_scale]> <= 0 || <[recoil_scale]> > 3:
+        - narrate "<red>[Lapex] Shared recoil scale must be greater than 0 and no more than 3: <[recoil_scale]>"
+        - define failures <[failures].add[1]>
     - narrate "<yellow>Lapex validation started for <[ids].size> guns..."
-    - foreach <list[lapex_weapon_trigger|lapex_weapon_auto|lapex_weapon_cadence_step|lapex_weapon_recoil_direction|lapex_weapon_ads_toggle|lapex_weapon_ads_cancel]> as:required_script:
+    - foreach <list[lapex_weapon_trigger|lapex_weapon_auto|lapex_weapon_cadence_step|lapex_weapon_recoil_direction|lapex_weapon_health_delta|lapex_weapon_resolve_damage|lapex_weapon_confirm_feedback|lapex_weapon_ads_toggle|lapex_weapon_ads_cancel]> as:required_script:
         - if <script[<[required_script]>]||null> == null:
             - narrate "<red>[Lapex] Missing weapon input runtime: <[required_script]>"
             - define failures <[failures].add[1]>
@@ -200,7 +204,7 @@ lapex_validate:
         - define checked_mag <[weapon].get[mag].round>
         - define checked_reload <duration[<[weapon].get[reload]>].in_ticks>
         - define checked_empty_reload <duration[<[weapon].get[empty_reload]>].in_ticks>
-        - define checked_recoil <[weapon].get[recoil_pitch].add[<[weapon].get[recoil_yaw]>]>
+        - define checked_recoil <[weapon].get[recoil_pitch].add[<[weapon].get[recoil_yaw]>].mul[<[recoil_scale].max[0.01]>]>
         - define checked_spread <[weapon].get[hip_spread].add[<[weapon].get[ads_spread]>]>
     - if <[registry].size> != <[ids].size>:
         - narrate "<red>[Lapex] Registry/list size mismatch: <[registry].size>/<[ids].size>"

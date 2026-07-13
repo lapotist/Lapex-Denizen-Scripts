@@ -122,11 +122,11 @@ lapex_arena_data:
         staging: 0,125,0
 
     # Denizen's native-entity `walk speed:` value is the raw movement
-    # attribute, not a 1.0-based multiplier. Keep patrol speed close to a
-    # vanilla husk (0.23) and use hysteresis so ranged bots do not constantly
-    # switch between chasing and stopping at one exact distance.
+    # attribute, not a 1.0-based multiplier. Patrol remains below a vanilla
+    # husk's 0.23 instead of returning to the old excessive-speed behavior.
+    # Slides are short traversal bursts, not a permanent movement multiplier.
     bot_tuning:
-        patrol_speed: 0.19
+        patrol_speed: 0.21
         chase_start_distance: 18
         chase_stop_distance: 12
         navigation_lock: 12s
@@ -135,6 +135,16 @@ lapex_arena_data:
         fallback_teleport_distance: 1.0
         opening_watchdog: 12s
         opening_escort_speed: 0.14
+        slide_chance: 0.18
+        slide_cooldown_min_ticks: 100
+        slide_cooldown_max_ticks: 160
+        slide_duration_ticks: 8
+        slide_start_speed: 0.32
+        slide_end_speed: 0.18
+        slide_probe_distance: 1.15
+        slide_min_goal_distance: 8
+        slide_spawn_clearance_z: 48
+        slide_bounds_margin: 5
         forward_bias: 0.8
         pursuit_bias: 0.9
         aim_height: 0.52
